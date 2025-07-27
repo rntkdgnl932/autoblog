@@ -666,6 +666,7 @@ def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summa
         - 기존 내용을 절대로 반복하거나 요약하지 말고, 새롭게 구성해
         - 수치, 조건, 사례, 정부 기관명, 표/ul 목록을 반드시 포함
         - HTML 형식(p, ul, table)으로 출력, <h2>는 포함하지 마
+        - 링크 작성 및 전화번호 입력시 실제로 유효한 건지 확인하고 작성
         """
         try:
             response = client.chat.completions.create(
