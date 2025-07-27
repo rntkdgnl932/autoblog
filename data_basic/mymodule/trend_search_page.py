@@ -118,8 +118,10 @@ def get_youtube_trending_titles():
 
     return titles
 
-
-
+    # yt_titles = get_youtube_trending_titles()
+    # print("▶ YouTube 급상승 영상 제목:")
+    # for i, title in enumerate(yt_titles, 1):
+    #     print(f"{i}. {title}")
 
 
 

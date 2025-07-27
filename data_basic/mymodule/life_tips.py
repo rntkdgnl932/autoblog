@@ -81,14 +81,6 @@ client = OpenAI(api_key=v_.api_key, timeout=200)
 wp = Client(f"{v_.domain_adress}/xmlrpc.php", v_.wd_id, v_.wd_pw)
 CATEGORY = v_.my_category
 
-# def summarize_for_description(client, content):
-#     prompt = f"다음 블로그 본문 내용을 100자 이내로 흥미롭게 요약해줘:\n{content}"
-#     response = client.chat.completions.create(
-#         model="gpt-4o",
-#         messages=[{"role": "user", "content": prompt}],
-#         temperature=0.6
-#     )
-#     return response.choices[0].message.content.strip()
 
 def summarize_for_description(client, content, title=None, keyword=None):
     # 타이틀 제거 (본문에 포함되어 있을 수 있음)
@@ -230,7 +222,16 @@ def life_tips_keyword(keyword):
     print(f"▶ 키워드로 본문 초안 생성: {keyword}")
     client = OpenAI(api_key=v_.api_key, timeout=200)
 
+    from datetime import datetime
+    today = datetime.today().strftime("%Y년 %m월 %d일")
+    this_year = datetime.today().year
+
     prompt = f"""
+    [정보 최신성 강조]
+    이 콘텐츠는 **{today} 현재 시점 기준으로 최신 내용을 기반으로 작성**되어야 합니다.
+    - **{this_year}년 이전에 발표된 정책·제도·지원금은 제외해야 해**"
+    - 현재 시점에서 유효한 자료만 반영
+    - 특히 “신청방법”이나 “조건”, “대상자”는 **오늘 날짜 기준으로 실제 신청 가능한 정보만 포함**
     '{keyword}'라는 주제로 블로그 본문 초안을 1000~1200자 분량으로 작성해줘.
     쉬운 감성적인 말투로 작성하되 정보성이 강조되어야 하고,
     이후 전문가 보정 및 요약 단계에 사용할 수 있도록 구성해줘.
@@ -302,7 +303,16 @@ def life_tips_start(article, keyword):
     slug = slugify(keyword)
 
     print("▶ GPT 콘텐츠 구조화")
+    from datetime import datetime
+    today = datetime.today().strftime("%Y년 %m월 %d일")
+    this_year = datetime.today().year
+
     prompt = f"""
+    [정보 최신성 강조]
+    이 콘텐츠는 **{today} 현재 시점 기준으로 최신 내용을 기반으로 작성**되어야 합니다.
+    - **{this_year}년 이전에 발표된 정책·제도·지원금은 제외해야 해**"
+    - 현재 시점에서 유효한 자료만 반영
+    - 특히 “신청방법”이나 “조건”, “대상자”는 **오늘 날짜 기준으로 실제 신청 가능한 정보만 포함**
     [목표]  
     '{keyword}' 주제를 바탕으로 생활정보성 블로그 콘텐츠를 제작합니다.  
     정보는 전문적이고 구체적으로 구성되며, **공식기관의 실제 설명을 기반으로 요약한 것처럼** 작성됩니다.  
@@ -313,9 +323,12 @@ def life_tips_start(article, keyword):
     {article}
 
     [작성 방식 및 구성]  
-    1. 초안 내용을 먼저 요약한 뒤 → 영어로 번역 → 다시 한국어로 역번역 → 재해석하여 **중복 없이 완전히 새롭게 구성**  
-    2. <목차> 라는 소제목을 제일 먼저 작성하고 아래에는 <ul> 리스트로 소제목을 작성하고 그 리스트가 밑에 생성된 소제목에 링크 되도록.  
-    3. 내용은 다음 조건을 **모두 충족해야 합니다**:  
+    1. 초안 내용을 먼저 요약한 뒤 → 영어로 번역 → 다시 한국어로 역번역 → 재해석하여 **중복 없이 완전히 새롭게 구성**
+    2. 반드시 오늘 날짜 기준으로 최신의 것으로 구성.
+       - 예를 들어 각종 정책, 지원금, 신청방법 등의 주제로 작성하는데 오늘 날짜 기준으로 최신 내용으로 이루어질 것.
+       - 시간이 3개월 이상 지난 내용은 반드시 현재에도 그 내용이 유효한지 검사
+    3. <목차> 라는 소제목을 제일 먼저 작성하고 아래에는 <ul> 리스트로 소제목을 작성하고 그 리스트가 밑에 생성된 소제목에 링크 되도록.  
+    4. 내용은 다음 조건을 **모두 충족해야 합니다**:  
        - 추상적 설명 제거, 실질적 정보로 구성 (신청 대상, 조건, 절차, 금액, 예시 등)  
        - 정보 출처가 명확하되, “자세한 내용은 링크 참조” 금지 → **내용을 직접 서술로 대체**  
        - **공식기관이나 제도 문서처럼** 수치, 기간, 조건, 사례, 필요서류 등을 명확히 제시  
@@ -331,6 +344,7 @@ def life_tips_start(article, keyword):
        - 신청 대상/조건/금액/절차/주의사항
        - 관련 수치(예: 소득 3% 초과, 15만원 이상, 3년 이상 등)
        - 제도 운영기관 명시 (링크는 부가적 설명, 핵심정보는 본문에)
+       - 내용에 링크 넣을 경우, 실제로 그 사이트 존재 유무 판단하고 링크 입력하기
        - 신청 방법/제한사항/사례 설명  
        - **표 1개 이상 또는 리스트 1개 이상 반드시 포함 (누락 금지)**
 
@@ -636,7 +650,16 @@ def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summa
         if h2_text.lower() == "목차":
             continue
 
+        from datetime import datetime
+        today = datetime.today().strftime("%Y년 %m월 %d일")
+        this_year = datetime.today().year
+
         prompt = f"""
+        [정보 최신성 강조]
+        이 콘텐츠는 **{today} 현재 시점 기준으로 최신 내용을 기반으로 작성**되어야 합니다.
+        - **{this_year}년 이전에 발표된 정책·제도·지원금은 제외해야 해**"
+        - 현재 시점에서 유효한 자료만 반영
+        - 특히 “신청방법”이나 “조건”, “대상자”는 **오늘 날짜 기준으로 실제 신청 가능한 정보만 포함**
         다음은 '{keyword}' 관련 블로그 콘텐츠의 소제목 '{h2_text}'입니다.
         이 항목에 대해 SEO와 정보성을 극대화한 형식으로 완전히 새롭게 작성해줘.
         아래 조건을 반드시 지켜:
@@ -840,6 +863,9 @@ def suggest_life_tip_topic():
     from openai import OpenAI
     import variable as v_
 
+    from datetime import datetime
+    today = datetime.today().strftime("%Y년 %m월 %d일")
+
     suggest__ = False
 
     if "none" in v_.wd_id:
@@ -859,15 +885,22 @@ def suggest_life_tip_topic():
 
         result_titles = load_existing_titles()
 
-
         prompt = f"""
         {result_titles}
         블로그에 있는 제목들이야.
         {v_.my_topic}
-        현재 날짜를 기준으로 위 제목들과 되도록 유사하지 않은 블로그용 카테고리에 맞는 주제를 하나 추천해줘. 카테고리는 '{v_.my_category}' 이거야.
-        반드시 금전적 이득을 취할 수 있거나, 생활의 불편한 점을 해소 하는 등, 너무 흔하지 않고 실용적이면서도 대중적인 주제여야 해.
-        최대한 돈 되는 정보, 부동산, 주식, 금융, 지원금, 정책 등 현재 시점에서의 이슈중인 것을 위주로 카테고리와 관련된 주제를 선정해야해. 특수문자나 이모티콘을 제거하고 주제만 적어줘.
-        반드시 현재 날짜를 기준으로 주제를 선정해야해.
+
+        오늘 날짜는 **{today}**이야.  
+        이 날짜 기준으로, 위 제목들과 유사하지 않은 새로운 블로그용 주제를 하나 추천해줘.  
+        카테고리는 **'{v_.my_category}'**야.
+
+        작성 조건:
+        - 주제는 **실용적이고 대중적인 정보**여야 하며, **금전적 이득**, **생활의 불편함 해소** 등 현실적인 문제 해결 중심
+        - 특히 **부동산, 금융, 지원금, 정부 정책, 세금, 소비혜택 등 ‘돈 되는 정보’ 위주**
+        - 지원금, 신청방법, 정책 등의 경우, 반드시 **{today} 기준 최근 2달 이내**에 발표된 내용 중 여전히 유효한 것
+        - 흔한 주제는 배제하고, **구체적이고 검색 가능성이 높은 주제**로 제시할 것
+        - 특수문자, 이모티콘 없이, 주제 문장만 출력
+
         """
         response = client.chat.completions.create(
             model="gpt-4o",
