@@ -1,0 +1,8 @@
+세라보그외곽_715_470_serabogout_end
+수몰된평원_640_520_soomallpyungwon_end
+새벽빛골짜기_790_610_saebyuggoljjagi_end
+리트바르마굴상층_860_530_litbarup_end
+리트바르마굴하층_910_540_litbardown_end
+벌레굴_910_540_bugool_and
+하수도미로_600_470_hasoodomiro_end
+오크지하창고_690_620_okunderchango_end
