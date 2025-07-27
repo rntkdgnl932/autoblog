@@ -39,6 +39,14 @@ import slugify as unicode_slugify
 from bs4 import BeautifulSoup
 from pytrends.request import TrendReq
 from openai import OpenAI
+import requests
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
 
 
 # 패키지 다운 불필요
