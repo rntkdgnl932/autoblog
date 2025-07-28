@@ -29,6 +29,7 @@ def go_test(keyword):
     import urllib.parse
     from life_tips import life_tips_keyword, check_openai_ready, suggest_life_tip_topic
     from trend_search_page import get_zum_ai_issue_trends, get_google_trending_keywords, get_youtube_trending_titles
+    from organization_info import scan_internet
 
     try:
         print("test")
@@ -53,7 +54,9 @@ def go_test(keyword):
 
         # suggest_life_tip_topic()
 
+        org_name = "한국전력"
 
+        scan_internet(org_name)
 
         # trend_search()
 

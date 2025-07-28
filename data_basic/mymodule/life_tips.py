@@ -87,17 +87,37 @@ def summarize_for_description(client, content, title=None, keyword=None):
     if title and title in content:
         content = content.replace(title, "")
 
-    # 요약 요청 프롬프트
-    keyword_line = f"이 내용은 '{keyword}'에 관한 것입니다.\n" if keyword else ""
-    prompt = (
-        f"{keyword_line}다음 블로그 본문 내용을 100자 이내로 흥미롭고 자연스럽게 요약해줘. "
-        f"단, 제목과 동일한 문장은 피하고, 내용 핵심만 요약해줘:\n{content[:1500]}"
-    )
+    # ▶ 요약 프롬프트 구성
+    import textwrap
+
+    summary_target = textwrap.shorten(content, width=1800, placeholder="...")  # 문장 잘림 최소화
+    keyword_line = f"이 내용은 '{keyword}'에 관한 블로그 본문입니다." if keyword else ""
+
+    system_msg = "당신은 블로그 전문 에디터입니다. SEO를 고려한 요약 문장을 작성합니다."
+
+    prompt = f"""
+    {keyword_line}
+    다음 블로그 본문 내용을 **100자 이내로 자연스럽게 요약**해줘.
+
+    [요약 조건]
+    - 핵심 내용을 간결하게 전달할 것
+    - **제목 문장과 겹치지 않도록** 요약할 것
+    - 흥미를 유발하는 정보 요약 중심 (의문형·감성 문장 허용)
+    - **불필요한 형식, 이모티콘, 마크다운, HTML 금지**
+    - 순수 자연어 문장만 출력
+
+    [본문 내용]
+    {summary_target}
+    """
 
     try:
+        # ▶ GPT 호출
         response = client.chat.completions.create(
             model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": prompt}
+            ],
             temperature=0.6
         )
         result = response.choices[0].message.content.strip()
@@ -227,20 +247,49 @@ def life_tips_keyword(keyword):
     this_year = datetime.today().year
 
     prompt = f"""
-    [정보 최신성 강조]
-    이 콘텐츠는 {today} 현재 시점 기준으로 최신 내용을 기반으로 작성되어야 합니다.
-    - {this_year}년 이전에 발표된 정책·제도·지원금은 제외해야 해
-    - 현재 시점에서 유효한 자료만 반영
-    - 특히 '신청방법'이나 '조건', '대상자'는 오늘 날짜 기준으로 실제 신청 가능한 정보만 포함
-    '{keyword}'라는 주제로 블로그 본문 초안을 1000~1200자 분량으로 작성해줘.
-    쉬운 감성적인 말투로 작성하되 정보성이 강조되어야 하고,
-    이후 전문가 보정 및 요약 단계에 사용할 수 있도록 구성해줘.
+    📌 [정보 최신성 기준]
+    이 콘텐츠는 **{today} 기준으로 최신 정보만 포함**되어야 합니다.
+
+    - **{this_year}년 이전에 발표된 정책·제도·지원금은 제외**
+    - **현재 시점에서 실제로 신청 가능한 정보**만 반영
+    - 특히 '신청방법', '지원조건', '대상자' 등은 **오늘 날짜 기준으로 유효한 내용만 포함**
+
+    📌 [작성 요청]
+    다음 주제: **'{keyword}'**
+
+    이 주제를 바탕으로 블로그용 본문 초안을 작성해주세요.
+
+    작성 조건:
+    - **분량**: 약 1000~1200자
+    - **문체**: 친근하고 감성적인 말투이되, **정보성 중심**
+    - **목적**: 이후 요약·전문화 작업을 위해 구조화된 초안 생성
+    - **포맷**: HTML 태그 없이 일반 텍스트로 구성 (단락 구분은 줄바꿈)
+
+    ⛔ 금지:
+    - 이미 종료된 정책 또는 신청 불가능한 정보 포함
+    - 추정 정보, 존재하지 않는 기관·사이트·전화번호 작성
     """
+
     response = client.chat.completions.create(
         model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.7
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "당신은 정보성 블로그 콘텐츠를 전문적으로 작성하는 작가입니다. "
+                    "정책, 지원금, 제도 등을 실제로 조사해 요약하는 방식으로, "
+                    "정확하고 감성적인 콘텐츠를 작성해야 합니다. "
+                    "특히 독자가 실질적으로 도움을 받을 수 있도록 유효한 최신 정보만 반영해야 합니다."
+                )
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        temperature=0.5
     )
+
     article = response.choices[0].message.content.strip().replace("```html", "").replace("```", "")
     life_tips_start(article, keyword)
 
@@ -295,6 +344,7 @@ def life_tips_start(article, keyword):
     from wordpress_xmlrpc import Client, WordPressPost
     from wordpress_xmlrpc.methods.posts import NewPost
     from wordpress_xmlrpc.methods.media import UploadFile
+    from organization_info import my_organization_list, last_upload_ready, scan_internet
 
     print("▶ OpenAI ● WP 클라이언트 초기화")
     client = OpenAI(api_key=v_.api_key, timeout=200)
@@ -389,8 +439,25 @@ def life_tips_start(article, keyword):
 
     response = client.chat.completions.create(
         model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.6
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "당신은 정보성 블로그 콘텐츠를 전문적으로 작성하는 작가입니다. "
+                    "특히 최신 정부 정책, 지원금, 세금 제도 등에 대한 글을 작성하며, "
+                    "독자가 다른 사이트를 열지 않아도 될 만큼 상세하고 정확하게 설명해야 합니다. "
+                    "공식 기관의 설명처럼 전문성과 신뢰도를 유지하되, "
+                    "블로그 스타일로 자연스럽고 매끄럽게 작성하는 능력이 중요합니다. "
+                    "특히 수치·절차·조건 등 구체적인 정보를 중심으로 전달하세요. "
+                    "모든 전화번호 및 URL은 존재하는 정보만 활용하며, 자신 없으면 '대표전화 문의 필요' 또는 '공식 홈페이지 참조'로 처리하세요."
+                )
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        temperature=0.6  # ✅ 정보성과 감성의 균형을 위한 적정 수치
     )
 
     result = response.choices[0].message.content.strip().replace("```html", "").replace("```", "")
@@ -510,6 +577,11 @@ def life_tips_start(article, keyword):
     personal_opinion = opinion_html.replace("<p>", "").replace("</p>", "").replace("<em>", "").replace("</em>",
                                                                                                        "").strip()
 
+    print("body_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_html")
+    print(body_html)
+    print("body_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_html")
+
+    # ✅ GPT로 본문 구성 후
     gpt_generated_html = optimize_html_for_seo_with_gpt(
         client,
         f"<img src='{scene_url}' style='display:block; margin:auto;' alt='{keyword}'><br>{body_html}",
@@ -518,11 +590,18 @@ def life_tips_start(article, keyword):
         personal_opinion=personal_opinion
     )
 
-    print("gpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_html")
+    print("gpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_html")
     print(gpt_generated_html)
-    print("gpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_html")
+    print("gpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_html")
 
-    optimized_html = postprocess_html_for_blog(gpt_generated_html, keyword=keyword).strip()
+    # ✅ 기관명 추출 후 검색 및 저장
+    for org_name in my_organization_list(gpt_generated_html):
+        scan_internet(org_name)
+
+    # ✅ 기관 정보 기반 교체 및 최종 업로드 준비
+    final_html = last_upload_ready(gpt_generated_html)
+
+    optimized_html = postprocess_html_for_blog(final_html, keyword=keyword).strip()
 
     print("optimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_html")
     print(optimized_html)
@@ -544,18 +623,22 @@ def life_tips_start(article, keyword):
     if thumbnail_id:
         post.thumbnail = thumbnail_id
     post.post_status = 'publish'
-    wp.call(NewPost(post))
-    print(f"✅ 게시 완료: {title}")
 
-    print("▶ 로컬 백업 저장")
-    try:
-        folder = "C:/my_games/upload_blog"
-        os.makedirs(folder, exist_ok=True)
-        path = os.path.join(folder, "log.txt")
-        with open(path, "a", encoding="utf-8") as f:
-            f.write(f"{title}\n{title}\n")
-    except Exception as e:
-        print(f"⚠️ 저장 실패: {e}")
+    if not title or not optimized_html or "제목 없음" in title or len(optimized_html.strip()) < 200:
+        print("❌ 콘텐츠가 비정상입니다. 업로드를 중단합니다.")
+    else:
+        wp.call(NewPost(post))
+        print(f"✅ 게시 완료: {title}")
+        #
+        # print("▶ 로컬 백업 저장")
+        # try:
+        #     folder = "C:/my_games/upload_blog"
+        #     os.makedirs(folder, exist_ok=True)
+        #     path = os.path.join(folder, "log.txt")
+        #     with open(path, "a", encoding="utf-8") as f:
+        #         f.write(f"{title}\n{title}\n")
+        # except Exception as e:
+        #     print(f"⚠️ 저장 실패: {e}")
 
 def safe_term(term):
     # 너무 길면 짜르고, 빈 값 방지
@@ -613,6 +696,7 @@ def optimize_html_for_seo(html_content, keyword):
 
 def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summary="", personal_opinion=""):
     from bs4 import BeautifulSoup
+    from datetime import datetime
 
     print("▶ GPT로 소제목 단위 재구성 시작")
     soup = BeautifulSoup(html_content, 'html.parser')
@@ -642,6 +726,10 @@ def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summa
     if current_section:
         sections.append(current_section)
 
+    # 날짜 설정
+    today = datetime.today().strftime("%Y년 %m월 %d일")
+    this_year = datetime.today().year
+
     # GPT로 소제목별 재작성
     new_body = []
     for section in sections:
@@ -650,32 +738,56 @@ def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summa
         if h2_text.lower() == "목차":
             continue
 
-        from datetime import datetime
-        today = datetime.today().strftime("%Y년 %m월 %d일")
-        this_year = datetime.today().year
+        system_message = (
+            "당신은 정부 정책, 지원금, 제도 정보를 전문적으로 안내하는 공공기관 블로그 콘텐츠 작성 전문가입니다. "
+            "절대 허위 정보를 생성하지 않으며, 전화번호나 웹사이트 주소는 존재하는 공식 정보만 사용합니다. "
+            "AI 흔적을 남기지 마세요."
+        )
 
         prompt = f"""
-        [정보 최신성 강조]
-        이 콘텐츠는 {today} 현재 시점 기준으로 최신 내용을 기반으로 작성되어야 합니다.
-        - {this_year}년 이전에 발표된 정책·제도·지원금은 제외해야 해
-        - 현재 시점에서 유효한 자료만 반영
-        - 특히 '신청방법'이나 '조건', '대상자'는 오늘 날짜 기준으로 실제 신청 가능한 정보만 포함
-        다음은 '{keyword}' 관련 블로그 콘텐츠의 소제목 '{h2_text}'입니다.
-        이 항목에 대해 SEO와 정보성을 극대화한 형식으로 완전히 새롭게 작성해줘.
-        아래 조건을 반드시 지켜:
-        - 기존 내용을 절대로 반복하거나 요약하지 말고, 새롭게 구성해
-        - 수치, 조건, 사례, 정부 기관명, 표/ul 목록을 반드시 포함
-        - HTML 형식(p, ul, table)으로 출력, <h2>는 포함하지 마
-        - 전화번호, 기관명, 공식 웹사이트 주소(URL)를 포함할 경우 **절대 임의로 생성하지 말고**, 실제 존재하는 정보를 기반으로 작성해야 함
-        - 특히 **URL은 현재 시점에서 접속 가능한 사이트만 명시**해야 하며, **존재하지 않는 주소를 예측해서 적으면 안 됨**
-        - 정부 기관 전화번호, 콜센터 등은 반드시 **공식 기관명을 포함하여 정확히 작성**
-        - **전화번호 또는 주소는 틀리면 큰 문제가 되므로, 자신 없으면 '대표전화 문의 필요' 등으로 처리**
+        📌 [콘텐츠 작성 목적]
+        - '{keyword}' 주제의 소제목 항목 '{h2_text}'에 대한 블로그 콘텐츠 본문을 작성합니다.
+
+        📌 [콘텐츠 생성 규칙]
+        - 출력은 반드시 **HTML 형식만 사용** (※ Markdown 문법 `###`, `**` 절대 금지)
+        - <h2> 태그는 포함하지 마세요. 본문 내용만 출력하세요.
+        - **소제목 제목 자체는 출력하지 말 것** (이미 시스템에서 삽입됨)
+        - 내용 중 같은 문장 또는 제목의 반복 금지
+        - 정보가 없는 경우 ‘작성 불가’라고 명시하세요. 추정으로 채우지 마세요.
+
+        📌 [정보 최신성 기준]
+        - 작성일 기준: {today}
+        - {this_year}년 이전에 종료된 정책, 제도, 지원금은 전부 제외
+        - 현재 실제 신청 가능한 정책만 포함
+
+        📌 [정보 정확도 및 SEO 지침]
+        - 각 항목은 다음 중 최소 2개 이상 포함:
+            - 수치, 조건, 실제 사례, 운영 기관명
+            - `<table>` 또는 `<ul>` 태그 포함
+            - 명확하고 정확한 표현 사용
+        - 중복 문단·중복 제목 생성 금지
+
+        📌 [기관 정보 처리 지침]
+        - 전화번호는 실제 존재하는 기관의 공식 대표번호만 사용 (허구 생성 금지)
+        - 홈페이지 링크(URL)는 반드시 실제 존재하는 공식 URL만 사용
+            - 확인되지 않은 URL은 절대 생성하지 말고, "공식 홈페이지 참조"로만 표기
+            - 실제 확인된 URL만 다음 형식으로 출력:
+              `<a href="https://도메인" target="_blank" rel="noopener">기관명 공식 홈페이지</a>`
+            - 지어낸 주소는 절대 사용 금지. 실제 확인되지 않은 사이트는 링크하지 않기
+            - URL은 반드시 사람이 직접 방문 가능한지 검증된 주소만 사용
+
+        ✅ 반드시 HTML만 출력  
+        ❌ Markdown 문법 (`###`, `**`), 허위 링크, 허구 전화번호, 중복 소제목 금지
         """
+
         try:
             response = client.chat.completions.create(
                 model="gpt-4o",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.5
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3
             )
             rewritten_html = response.choices[0].message.content.strip()
         except Exception as e:
@@ -692,7 +804,7 @@ def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summa
         extra_parts.append(f"<p><strong>한줄요약:</strong> {cleaned_summary}</p>")
     if personal_opinion:
         cleaned_opinion = personal_opinion.replace("개인 의견:", "").strip()
-        extra_parts.append(f"<p><em style=\"color:#555; font-weight:bold;\">개인 의견: {cleaned_opinion}</em></p>")
+        extra_parts.append(f"<p><em style='color:#555; font-weight:bold;'>개인 의견: {cleaned_opinion}</em></p>")
 
     # 전체 본문 구성
     full_body = "".join(new_body + extra_parts)
@@ -702,19 +814,139 @@ def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summa
     meta_description_paragraph = f'<p style="color:#888;"><strong>📌 </strong> {meta_description}</p>'
 
     # 최종 HTML 조립 (Gutenberg 블록 에디터 대응)
-    final_html = f"""
-<!-- wp:html -->
+    final_html = f"""<!-- wp:html -->
 {img_html}
 {meta_description_paragraph}
 {full_body}
-<!-- /wp:html -->
-""".strip()
+<!-- /wp:html -->""".strip()
 
     return final_html
+#
+#
+# def optimize_html_for_seo_with_gpt_ex(client, html_content, keyword, one_line_summary="", personal_opinion=""):
+#     from bs4 import BeautifulSoup
+#
+#     print("▶ GPT로 소제목 단위 재구성 시작")
+#     soup = BeautifulSoup(html_content, 'html.parser')
+#
+#     # 본문 이미지 추출 및 제거
+#     main_image = soup.find("img")
+#     img_html = str(main_image).replace("\n", "").strip() if main_image else ""
+#     if main_image:
+#         main_image.decompose()
+#
+#     # 본문 영역 확보
+#     body_container = soup.body if soup.body else soup
+#     if body_container is None:
+#         print("❌ [오류] 본문(body) 파싱 실패")
+#         return html_content
+#
+#     # <h2> 기준 섹션 분할
+#     sections = []
+#     current_section = []
+#     for elem in body_container.children:
+#         if getattr(elem, 'name', None) == "h2":
+#             if current_section:
+#                 sections.append(current_section)
+#             current_section = [elem]
+#         elif current_section:
+#             current_section.append(elem)
+#     if current_section:
+#         sections.append(current_section)
+#
+#     # GPT로 소제목별 재작성
+#     new_body = []
+#     for section in sections:
+#         h2 = section[0]
+#         h2_text = h2.get_text(strip=True)
+#         if h2_text.lower() == "목차":
+#             continue
+#
+#         from datetime import datetime
+#         today = datetime.today().strftime("%Y년 %m월 %d일")
+#         this_year = datetime.today().year
+#
+#         system_message = """
+#         당신은 정부 정책, 지원금, 제도 정보를 전문적으로 안내하는 공공기관 블로그 콘텐츠 작성 전문가입니다.
+#         절대 허위 정보를 생성하지 않으며, 전화번호나 웹사이트 주소는 존재하는 공식 정보만 사용합니다.
+#         AI 흔적 남기지 말 것
+#         """
+#
+#         prompt = f"""
+#         📌 [콘텐츠 작성 목적]
+#         - '{keyword}' 주제의 소제목 항목 '{h2_text}'에 대한 블로그 콘텐츠 본문을 작성합니다.
+#
+#         📌 [정보 최신성 기준]
+#         - 작성일 기준: {today}
+#         - {this_year}년 이전에 발표된 정책·제도·지원금은 **모두 제외**
+#         - 실제로 신청 가능한 현재 유효한 정책·제도만 포함
+#         - 특히 '신청 방법', '신청 대상', '지원 조건' 등은 **오늘 기준으로 유효한 정보만** 작성
+#
+#         📌 [SEO 및 정보성 지침]
+#         - 기존 문장을 반복하거나 요약하지 말고, **완전히 새롭게 재구성**
+#         - 반드시 수치, 조건, 실제 사례, 정부 기관명, 표(`<table>`) 또는 목록(`<ul>`)을 포함
+#         - 결과물은 **HTML 형식**으로 구성 (단, `<h2>` 태그는 사용 금지)
+#
+#         📌 [기관 정보 및 링크 작성 기준]
+#         - 전화번호는 해당 정책/기관의 **공식 대표전화**만 사용
+#         - 웹사이트는 **실제 접속 가능한 공식 홈페이지(URL)**만 명시
+#         - 존재하지 않는 전화번호/URL/기관명을 AI가 임의로 생성해서는 절대 안 됨
+#         - 정확한 확인이 어려운 경우 다음 문구로 대체:
+#             - 전화번호: `대표전화 문의 필요`
+#             - 웹사이트: `공식 홈페이지 참조`
+#
+#         ✅ 반드시 실제 존재하는 공공기관 기준 정보만 활용
+#         ❌ 잘못된 전화번호, 허구 URL, 모호한 기관명 금지
+#         """
+#
+#         try:
+#             response = client.chat.completions.create(
+#                 model="gpt-4o",
+#                 messages=[
+#                     {"role": "system", "content": system_message},
+#                     {"role": "user", "content": prompt}
+#                 ],
+#                 temperature=0.3
+#             )
+#             rewritten_html = response.choices[0].message.content.strip()
+#         except Exception as e:
+#             print(f"❌ GPT 재구성 실패 - {h2_text}: {e}")
+#             rewritten_html = f"<p>{h2_text} 관련 내용을 준비하지 못했습니다.</p>"
+#
+#         new_body.append(str(h2))
+#         new_body.append(rewritten_html)
+#
+#     # 요약 및 개인 의견 추가
+#     extra_parts = []
+#     if one_line_summary:
+#         cleaned_summary = one_line_summary.replace("한줄요약:", "").strip()
+#         extra_parts.append(f"<p><strong>한줄요약:</strong> {cleaned_summary}</p>")
+#     if personal_opinion:
+#         cleaned_opinion = personal_opinion.replace("개인 의견:", "").strip()
+#         extra_parts.append(f"<p><em style=\"color:#555; font-weight:bold;\">개인 의견: {cleaned_opinion}</em></p>")
+#
+#     # 전체 본문 구성
+#     full_body = "".join(new_body + extra_parts)
+#
+#     # meta description 내용 추출
+#     meta_description = f"{keyword}에 대한 실생활 정보 및 가이드입니다."
+#     meta_description_paragraph = f'<p style="color:#888;"><strong>📌 </strong> {meta_description}</p>'
+#
+#     # 최종 HTML 조립 (Gutenberg 블록 에디터 대응)
+#     final_html = f"""
+# <!-- wp:html -->
+# {img_html}
+# {meta_description_paragraph}
+# {full_body}
+# <!-- /wp:html -->
+# """.strip()
+#
+#     return final_html
 
 
 
 
+# ✅ 1. postprocess_html_for_blog()에 중복 소제목 제거 함수 추가
 
 def postprocess_html_for_blog(raw_html, keyword):
     from bs4 import BeautifulSoup
@@ -725,8 +957,8 @@ def postprocess_html_for_blog(raw_html, keyword):
 
     # 불필요한 코드블록 제거
     raw_text = str(soup)
-    raw_text = re.sub(r'(```html|```|“`html|”`)', '', raw_text, flags=re.IGNORECASE)
-    raw_text = re.sub(r'주제\s*추천\s*[:：]?', '', raw_text, flags=re.IGNORECASE)
+    raw_text = re.sub(r'(```html|```|"`html|"`)', '', raw_text, flags=re.IGNORECASE)
+    raw_text = re.sub(r'\uc8fc\uc81c\s*\ucd94\ucc9c\s*[:\uff1a]?', '', raw_text, flags=re.IGNORECASE)
     soup = BeautifulSoup(raw_text, 'html.parser')
 
     # "목차"라는 h2 혹은 p 태그 제거
@@ -784,7 +1016,6 @@ def postprocess_html_for_blog(raw_html, keyword):
         img_tag = soup.body.find("img")
         if img_tag:
             img_tag.extract()
-            # 불필요한 br 또는 공백 제거
             for node in list(soup.body.children):
                 if str(node).strip() in ["", "<br/>", "<br>", "<p><br/></p>"]:
                     node.extract()
@@ -805,7 +1036,20 @@ def postprocess_html_for_blog(raw_html, keyword):
         if not inserted:
             soup.body.insert(0, toc_ul)
 
+    # ✅ 중복 소제목 텍스트 제거
+    remove_heading_duplication(soup)
+
     return str(soup)
+
+
+def remove_heading_duplication(soup):
+    h2_tags = soup.find_all("h2")
+    for h2 in h2_tags:
+        h2_text = h2.get_text(strip=True)
+        next_tag = h2.find_next_sibling()
+        if next_tag and next_tag.name in ['p', 'strong'] and h2_text in next_tag.get_text(strip=True):
+            next_tag.decompose()
+
 
 
 
@@ -869,6 +1113,7 @@ def suggest_life_tip_topic():
 
     from datetime import datetime
     today = datetime.today().strftime("%Y년 %m월 %d일")
+    this_year = datetime.today().year
 
     suggest__ = False
 
@@ -889,27 +1134,44 @@ def suggest_life_tip_topic():
 
         result_titles = load_existing_titles()
 
-        prompt = f"""
-        {result_titles}
-        블로그에 있는 제목들이야.
-        {v_.my_topic}
-
-        오늘 날짜는 **{today}**이야.  
-        이 날짜 기준으로, 위 제목들과 유사하지 않은 새로운 블로그용 주제를 하나 추천해줘.  
-        카테고리는 **'{v_.my_category}'**야.
-
-        작성 조건:
-        - 주제는 **실용적이고 대중적인 정보**여야 하며, **금전적 이득**, **생활의 불편함 해소** 등 현실적인 문제 해결 중심
-        - 특히 **부동산, 금융, 지원금, 정부 정책, 세금, 소비혜택 등 ‘돈 되는 정보’ 위주**
-        - 지원금, 신청방법, 정책 등의 경우, 반드시 **{today} 기준 최근 2달 이내**에 발표된 내용 중 여전히 유효한 것
-        - 흔한 주제는 배제하고, **구체적이고 검색 가능성이 높은 주제**로 제시할 것
-        - 특수문자, 이모티콘 없이, 주제 문장만 출력
-
+        # 2. system 역할에 블로그 방향성 명시
+        system_prompt = f"""
+        당신은 '{v_.my_topic}' 주제에 특화된 전문 블로그 운영자입니다.
+        주 독자는 실용적인 정보, 돈 되는 정보, 최신 정부 정책, 생활 속 꿀팁에 관심이 많은 일반 대중입니다.
+        모든 제안은 SEO와 검색 가능성을 고려하여 **구체적이고 대중적인 주제**로 구성되어야 합니다.
         """
+
+        # 3. user 프롬프트
+        user_prompt = f"""
+        🔎 [기본 자료]
+        - 현재 블로그에 이미 있는 제목 목록:
+        {result_titles}
+
+        📅 [오늘 날짜]
+        - 오늘은 {today}입니다.
+
+        📌 [추천 주제 선정 기준]
+        - 위 제목들과 **유사하지 않은**, 새로운 주제를 하나만 추천해주세요.
+        - 블로그 카테고리는 **'생활 팁과 정보 (Blue)'**입니다.
+        - 다음 조건을 모두 만족하는 실용적 정보 주제여야 합니다:
+
+        1. **금전적 이득** 또는 **생활 불편 해소**에 직접 연결되는 주제
+        2. 특히 다음 영역을 우선 고려:
+           - **부동산, 금융, 세금, 정부 지원, 신청 제도, 공공 정책, 소비자 혜택**
+        3. 정책·제도·지원금 관련 주제는 반드시 **{today} 기준 최근 60일 이내** 발표된 내용만 포함
+        4. 너무 흔하거나 포괄적인 주제는 배제
+           - **검색 가능성이 높은 구체적 주제**로 제시
+        5. **특수문자, 이모지 없이**, **주제 문장만 출력**
+        """
+
+        # 4. GPT 호출
         response = client.chat.completions.create(
             model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.5
         )
 
 

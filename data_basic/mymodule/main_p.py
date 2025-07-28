@@ -180,7 +180,7 @@ class MyApp(QDialog):
         elif last_monitor_number == 3:
             x_reg = 960 * 4
 
-        self.setGeometry(20 + x_reg, 200, 900, 700)
+        self.setGeometry(20, 200, 900, 700)
         self.show()
     def my_title(self):
         self.setWindowTitle(v_.this_game + "(ver " + version + ")")
@@ -397,6 +397,9 @@ class SecondTab(QWidget):
                     v_.api_key = thismykey_one
                     thismycategory_one = lines_one[4]
                     v_.my_category = thismycategory_one
+                    v_.my_google_custom_id = lines_one[5]
+                    v_.my_google_custom_api = lines_one[6]
+
                 else:
                     print("mysettings\\idpw\\onecla.txt 정보가 없다.")
 
