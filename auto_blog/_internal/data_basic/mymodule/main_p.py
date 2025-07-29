@@ -180,7 +180,7 @@ class MyApp(QDialog):
         elif last_monitor_number == 3:
             x_reg = 960 * 4
 
-        self.setGeometry(20 + x_reg, 200, 900, 700)
+        self.setGeometry(20, 200, 900, 700)
         self.show()
     def my_title(self):
         self.setWindowTitle(v_.this_game + "(ver " + version + ")")
@@ -397,6 +397,9 @@ class SecondTab(QWidget):
                     v_.api_key = thismykey_one
                     thismycategory_one = lines_one[4]
                     v_.my_category = thismycategory_one
+                    v_.my_google_custom_id = lines_one[5]
+                    v_.my_google_custom_api = lines_one[6]
+
                 else:
                     print("mysettings\\idpw\\onecla.txt 정보가 없다.")
 
@@ -2272,6 +2275,9 @@ class game_Playing(QThread):
         import sys
         from PyQt5.QtWidgets import QApplication
         from PyQt5.QtTest import QTest
+        import random
+        from life_tips import life_tips_keyword
+        from trend_search_page import collect_all_topics, filter_topics_by_category
 
         try:
             print("game_Playing")
@@ -2286,8 +2292,27 @@ class game_Playing(QThread):
                 # if result_game == True:
                 print("자동발행 시작")
 
-                result_suggest = suggest_life_tip_topic()
-                print("result_suggest", result_suggest)
+                result_suggest = False
+
+                random_topic = random.randint(1, 2)
+
+                if random_topic == 1:
+
+                    result_suggest = suggest_life_tip_topic()
+                    print("result_suggest", result_suggest)
+
+                else:
+                    topic_list = collect_all_topics()
+
+                    filtered_topics = filter_topics_by_category(topic_list)
+
+                    print("\n🔷 최종 필터링된 블로그 키워드:", filtered_topics)
+                    if len(filtered_topics) > 0:
+                        result_suggest = True
+                        life_tips_keyword(filtered_topics)
+                    else:
+                        print("없..................")
+
                 if result_suggest == True:
 
                     # QTest.qWait(18000000)
