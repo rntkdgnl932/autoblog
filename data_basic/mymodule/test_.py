@@ -61,7 +61,7 @@ def go_test(keyword):
 
         # fetch_health_titles()
 
-        suggest_life_tip_topic()
+        fetch_health_titles()
 
 
 

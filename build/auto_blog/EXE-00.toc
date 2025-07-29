@@ -78,7 +78,7 @@
  [],
  False,
  False,
- 1753822107,
+ 1753824005,
  [('run.exe',
    'C:\\my_games\\auto_blog\\.venv\\lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit-intel\\run.exe',
    'EXECUTABLE')],
