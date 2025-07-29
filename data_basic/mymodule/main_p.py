@@ -384,6 +384,8 @@ class SecondTab(QWidget):
         file_path_topic = dir_path + "\\mysettings\\idpw\\onecla_topic.txt"
         file_path_openaiapi = dir_path + "\\mysettings\\idpw\\onecla_openaiapi.txt"
         file_path_google_custom = dir_path + "\\mysettings\\idpw\\onecla_google_custom.txt"
+        file_path_topic_system = dir_path + "\\mysettings\\idpw\\topic_system.txt"
+        file_path_topic_user = dir_path + "\\mysettings\\idpw\\topic_user.txt"
 
         for i in range(4):
             if os.path.isfile(file_path_one) == True:
@@ -452,6 +454,41 @@ class SecondTab(QWidget):
             else:
                 with open(file_path_topic, "w", encoding='utf-8-sig') as file:
                     file.write("- 주제는 실생활에서 활용도 높은 세금, 지원금, 연금, 공과금, 부동산, 법률, 주식 등의 돈과 관련된 항목을 위주로 설정")
+
+        for i in range(3):
+            if os.path.isfile(file_path_topic_system) == True:
+                # 파일 읽기
+                with open(file_path_topic_system, "r", encoding='utf-8-sig') as file:
+                    topic_system_one = file.read()
+                    v_.topic_system = topic_system_one
+                    break
+
+
+            else:
+                with open(file_path_topic_system, "w", encoding='utf-8-sig') as file:
+                    file.write(
+                        f"""
+                    주요 독자는 정책·생활지원금·신청제도·절약팁 등 실질적 도움이 되는 콘텐츠를 찾는 일반 대중입니다.
+                    **주의:** 제목에 '2025년 여름철', '이번 달' 등의 반복적 시점 표현은 제외하고, 정보 중심 키워드로 작성하세요."""
+                    )
+
+        for i in range(3):
+            if os.path.isfile(file_path_topic_user) == True:
+                # 파일 읽기
+                with open(file_path_topic_user, "r", encoding='utf-8-sig') as file:
+                    topic_user_one = file.read()
+                    v_.my_topic_user = topic_user_one
+                    break
+
+
+            else:
+                with open(file_path_topic_user, "w", encoding='utf-8-sig') as file:
+                    file.write(
+                        f"""
+                        - 특히 아래 분야 우선 고려:
+          - 부동산 정책, 금융 혜택, 세금 감면, 정부 지원금, 생활 신청제도, 에너지 절약, 소비자 혜택
+"""
+                    )
 
         if os.path.isfile(file_path_two) == True:
             # 파일 읽기

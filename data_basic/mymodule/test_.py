@@ -61,15 +61,7 @@ def go_test(keyword):
 
         # fetch_health_titles()
 
-        topic_list = collect_all_topics()
-
-        filtered_topics = filter_topics_by_category(topic_list)
-
-        print("\n🔷 최종 필터링된 블로그 키워드:", filtered_topics)
-        if len(filtered_topics) > 0:
-            life_tips_keyword(filtered_topics)
-        else:
-            print("없..................")
+        suggest_life_tip_topic()
 
 
 
