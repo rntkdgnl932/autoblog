@@ -142,7 +142,7 @@ class MyApp(QDialog):
         # git config --global --add safe.directory C:/my_games/mbng
         # auto_blog
         # data_basic
-        # pyinstaller --hidden-import PyQt5 --hidden-import pyserial --hidden-import OpenAI --hidden-import requests --hidden-import chardet --add-data="C:\\my_games\\auto_blog\\data_basic;./data_basic" --add-data="C:\\my_games\\auto_blog\\mysettings;./mysettings" --name auto_blog -i="auto_blog.ico" --add-data="auto_blog.ico;./" --icon="auto_blog.ico" --paths "C:\my_games\auto_blog\.venv\Scripts\python.exe" main.py
+        # pyinstaller --hidden-import PyQt5 --hidden-import pyserial --hidden-import OpenAI --hidden-import feedparser --hidden-import requests --hidden-import chardet --add-data="C:\\my_games\\auto_blog\\data_basic;./data_basic" --add-data="C:\\my_games\\auto_blog\\mysettings;./mysettings" --name auto_blog -i="auto_blog.ico" --add-data="auto_blog.ico;./" --icon="auto_blog.ico" --paths "C:\my_games\auto_blog\.venv\Scripts\python.exe" main.py
         # 업데이트버젼
         # pyinstaller --hidden-import PyQt5 --hidden-import pyserial --hidden-import requests --hidden-import chardet --add-data="C:\\my_games\\game_folder\\data_game;./data_game" --name game_folder -i="game_folder_macro.ico" --add-data="game_folder_macro.ico;./" --icon="game_folder_macro.ico" --paths "C:\Users\1_S_3\AppData\Local\Programs\Python\Python311\Lib\site-packages\cv2" main.py
 
