@@ -13,6 +13,10 @@ keyword = "none"
 my_category = "none"
 my_prompt = "none"
 my_topic = "none"
+my_google_custom_id = "none"
+my_google_custom_api = "none"
+my_topic_system = "none"
+my_topic_user = "none"
 
 # 게임 및 폴더 관련
 this_game = "auto_blog"

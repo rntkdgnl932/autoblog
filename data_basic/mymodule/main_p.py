@@ -460,7 +460,7 @@ class SecondTab(QWidget):
                 # 파일 읽기
                 with open(file_path_topic_system, "r", encoding='utf-8-sig') as file:
                     topic_system_one = file.read()
-                    v_.topic_system = topic_system_one
+                    v_.my_topic_system = topic_system_one
                     break
 
 
@@ -2416,6 +2416,7 @@ class game_Playing(QThread):
                 result_suggest = False
 
                 random_topic = random.randint(1, 2)
+                print("random_topic", random_topic)
 
                 if random_topic == 1:
 

@@ -59,6 +59,7 @@ import shutil
 import serial
 import pydirectinput
 import sys
+import feedparser
 
 
 sys.path.append('C:/my_games/auto_blog/data_basic/mymodule')

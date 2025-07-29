@@ -142,7 +142,7 @@ class MyApp(QDialog):
         # git config --global --add safe.directory C:/my_games/mbng
         # auto_blog
         # data_basic
-        # pyinstaller --hidden-import PyQt5 --hidden-import pyserial --hidden-import requests --hidden-import chardet --add-data="C:\\my_games\\auto_blog\\data_basic;./data_basic" --add-data="C:\\my_games\\auto_blog\\mysettings;./mysettings" --name auto_blog -i="auto_blog.ico" --add-data="auto_blog.ico;./" --icon="auto_blog.ico" --paths "C:\my_games\auto_blog\.venv\Scripts\python.exe" main.py
+        # pyinstaller --hidden-import PyQt5 --hidden-import pyserial --hidden-import OpenAI --hidden-import requests --hidden-import chardet --add-data="C:\\my_games\\auto_blog\\data_basic;./data_basic" --add-data="C:\\my_games\\auto_blog\\mysettings;./mysettings" --name auto_blog -i="auto_blog.ico" --add-data="auto_blog.ico;./" --icon="auto_blog.ico" --paths "C:\my_games\auto_blog\.venv\Scripts\python.exe" main.py
         # 업데이트버젼
         # pyinstaller --hidden-import PyQt5 --hidden-import pyserial --hidden-import requests --hidden-import chardet --add-data="C:\\my_games\\game_folder\\data_game;./data_game" --name game_folder -i="game_folder_macro.ico" --add-data="game_folder_macro.ico;./" --icon="game_folder_macro.ico" --paths "C:\Users\1_S_3\AppData\Local\Programs\Python\Python311\Lib\site-packages\cv2" main.py
 
@@ -180,7 +180,7 @@ class MyApp(QDialog):
         elif last_monitor_number == 3:
             x_reg = 960 * 4
 
-        self.setGeometry(20 + x_reg, 200, 900, 700)
+        self.setGeometry(20, 200, 900, 700)
         self.show()
     def my_title(self):
         self.setWindowTitle(v_.this_game + "(ver " + version + ")")
@@ -368,6 +368,8 @@ class SecondTab(QWidget):
         self.initUI()
         # self.set_rand_int()
 
+    # onecla_openaiapi
+    # my_google_custom_id
     def initUI(self):
 
         global one_id, one_pw, two_id, two_pw
@@ -380,32 +382,66 @@ class SecondTab(QWidget):
         file_path_one = dir_path + "\\mysettings\\idpw\\onecla.txt"
         file_path_two = dir_path + "\\mysettings\\idpw\\twocla.txt"
         file_path_topic = dir_path + "\\mysettings\\idpw\\onecla_topic.txt"
+        file_path_openaiapi = dir_path + "\\mysettings\\idpw\\onecla_openaiapi.txt"
+        file_path_google_custom = dir_path + "\\mysettings\\idpw\\onecla_google_custom.txt"
+        file_path_topic_system = dir_path + "\\mysettings\\idpw\\topic_system.txt"
+        file_path_topic_user = dir_path + "\\mysettings\\idpw\\topic_user.txt"
 
-        if os.path.isfile(file_path_one) == True:
-            # 파일 읽기
-            with open(file_path_one, "r", encoding='utf-8-sig') as file:
-                lines_one = file.read().split('\n')
-                # print('lines_one', lines_one)
-                if len(lines_one) > 4:
-                    thismyid_one = lines_one[0]
-                    v_.wd_id = thismyid_one
-                    thismypw_one = lines_one[1]
-                    v_.wd_pw = thismypw_one
-                    thismyps_one = lines_one[2]
-                    v_.domain_adress = thismyps_one
-                    thismykey_one = lines_one[3]
+        for i in range(4):
+            if os.path.isfile(file_path_one) == True:
+                # 파일 읽기
+                with open(file_path_one, "r", encoding='utf-8-sig') as file:
+                    lines_one = file.read().split('\n')
+                    if len(lines_one) > 3:
+                        thismyid_one = lines_one[0]
+                        v_.wd_id = thismyid_one
+                        thismypw_one = lines_one[1]
+                        v_.wd_pw = thismypw_one
+                        thismyps_one = lines_one[2]
+                        v_.domain_adress = thismyps_one
+                        thismycategory_one = lines_one[3]
+                        v_.my_category = thismycategory_one
+                        break
+
+                    else:
+                        print("mysettings\\idpw\\onecla.txt 정보가 없다.")
+            else:
+                print('onecla 파일 없당')
+                with open(file_path_one, "w", encoding='utf-8-sig') as file:
+                    data = "none \n none \n none \n none"
+                    file.write(data)
+        for i in range(4):
+            if os.path.isfile(file_path_openaiapi) == True:
+                # 파일 읽기
+                with open(file_path_openaiapi, "r", encoding='utf-8-sig') as file:
+                    lines_one = file.read()
+
+                    thismykey_one = lines_one
                     v_.api_key = thismykey_one
-                    thismycategory_one = lines_one[4]
-                    v_.my_category = thismycategory_one
-                else:
-                    print("mysettings\\idpw\\onecla.txt 정보가 없다.")
+                    break
+            else:
+                print('onecla_openaiapi 파일 없당')
+                with open(file_path_openaiapi, "w", encoding='utf-8-sig') as file:
+                    data = "none"
+                    file.write(data)
+        for i in range(4):
+            if os.path.isfile(file_path_google_custom) == True:
+                # 파일 읽기
+                with open(file_path_google_custom, "r", encoding='utf-8-sig') as file:
+                    lines_one = file.read().split('\n')
+                    if len(lines_one) > 1:
+                        v_.my_google_custom_id = lines_one[0]
+                        v_.my_google_custom_api = lines_one[1]
+                        break
 
-                one_id = thismyid_one
-                one_pw = thismypw_one
-        else:
-            print('one 파일 없당')
-            thismyid_one = 'none'
-            thismyps_one = 'none'
+                    else:
+                        print("mysettings\\idpw\\onecla_google_custom.txt 정보가 없다.")
+            else:
+                print('onecla_google_custom 파일 없당')
+                with open(file_path_openaiapi, "w", encoding='utf-8-sig') as file:
+                    data = "none \n none"
+                    file.write(data)
+
         for i in range(3):
             if os.path.isfile(file_path_topic) == True:
                 # 파일 읽기
@@ -418,6 +454,41 @@ class SecondTab(QWidget):
             else:
                 with open(file_path_topic, "w", encoding='utf-8-sig') as file:
                     file.write("- 주제는 실생활에서 활용도 높은 세금, 지원금, 연금, 공과금, 부동산, 법률, 주식 등의 돈과 관련된 항목을 위주로 설정")
+
+        for i in range(3):
+            if os.path.isfile(file_path_topic_system) == True:
+                # 파일 읽기
+                with open(file_path_topic_system, "r", encoding='utf-8-sig') as file:
+                    topic_system_one = file.read()
+                    v_.my_topic_system = topic_system_one
+                    break
+
+
+            else:
+                with open(file_path_topic_system, "w", encoding='utf-8-sig') as file:
+                    file.write(
+                        f"""
+                    주요 독자는 정책·생활지원금·신청제도·절약팁 등 실질적 도움이 되는 콘텐츠를 찾는 일반 대중입니다.
+                    **주의:** 제목에 '2025년 여름철', '이번 달' 등의 반복적 시점 표현은 제외하고, 정보 중심 키워드로 작성하세요."""
+                    )
+
+        for i in range(3):
+            if os.path.isfile(file_path_topic_user) == True:
+                # 파일 읽기
+                with open(file_path_topic_user, "r", encoding='utf-8-sig') as file:
+                    topic_user_one = file.read()
+                    v_.my_topic_user = topic_user_one
+                    break
+
+
+            else:
+                with open(file_path_topic_user, "w", encoding='utf-8-sig') as file:
+                    file.write(
+                        f"""
+                        - 특히 아래 분야 우선 고려:
+          - 부동산 정책, 금융 혜택, 세금 감면, 정부 지원금, 생활 신청제도, 에너지 절약, 소비자 혜택
+"""
+                    )
 
         if os.path.isfile(file_path_two) == True:
             # 파일 읽기
@@ -441,8 +512,12 @@ class SecondTab(QWidget):
         self.one_cla_id = QLabel("       WD_ID                ")
         self.one_cla_pw = QLabel("       WD_PW              ")
         self.one_cla_ps = QLabel("       도메인주소          ")
-        self.one_cla_key = QLabel("      OPENAI_API_KEY ")
         self.one_cla_ca = QLabel("      등록할 카테고리    ")
+
+        self.one_cla_key = QLabel("      OPENAI_API_KEY ")
+
+        self.one_cla_google_custom = QLabel("      Google_Custom ")
+
         self.one_cla_topic = QLabel("      원하는 주제 선정   ")
 
         self.one_cla_id_now = QLabel("       워드프레스ID : " + thismyid_one + "\n\n")
@@ -469,14 +544,23 @@ class SecondTab(QWidget):
         self.one_cla_pw_in.setText("비밀번호를 입력하세요.")
         self.one_cla_ps_in = QLineEdit(self)
         self.one_cla_ps_in.setText(thismyps_one)
-        self.one_cla_key_in = QLineEdit(self)
-        self.one_cla_key_in.setText("key값을 입력하세요.")
         self.one_cla_category_in = QLineEdit(self)
         self.one_cla_category_in.setText(thismycategory_one)
 
-
-        self.pushButton_one = QPushButton("저장하기")
+        self.pushButton_one = QPushButton("내 정보 저장하기")
         self.pushButton_one.clicked.connect(self.button_event1)
+
+        self.one_cla_key_in = QLineEdit(self)
+        self.one_cla_key_in.setText("key값을 입력하세요.")
+        self.pushButton_one_openaiapi_key = QPushButton("openai api key 등록하기")
+        self.pushButton_one_openaiapi_key.clicked.connect(self.button_event1_openaiapi)
+
+        self.one_cla_google_custom_id_in = QLineEdit(self)
+        self.one_cla_google_custom_id_in.setText("google_custom_id 값을 입력하세요.")
+        self.one_cla_google_custom_pw_in = QLineEdit(self)
+        self.one_cla_google_custom_pw_in.setText("google_custom_pw 값을 입력하세요.")
+        self.pushButton_one_google_custom = QPushButton("google custom 등록하기")
+        self.pushButton_one_google_custom.clicked.connect(self.button_event1_google_custom)
 
         self.one_cla_topic_in = QLineEdit(self)
         self.one_cla_topic_in.setText("")
@@ -522,13 +606,10 @@ class SecondTab(QWidget):
         vbox1_5.addWidget(self.one_cla_ps)
         vbox1_5.addWidget(self.one_cla_ps_in)
 
-        vbox1_55 = QHBoxLayout()
-        vbox1_55.addWidget(self.one_cla_key)
-        vbox1_55.addWidget(self.one_cla_key_in)
-
         vbox1_555 = QHBoxLayout()
         vbox1_555.addWidget(self.one_cla_ca)
         vbox1_555.addWidget(self.one_cla_category_in)
+
         vbox1_6 = QHBoxLayout()
         vbox1_6.addStretch(5)
         vbox1_6.addWidget(self.pushButton_one)
@@ -539,6 +620,23 @@ class SecondTab(QWidget):
         vbox1_topic_btn = QHBoxLayout()
         vbox1_topic_btn.addStretch(5)
         vbox1_topic_btn.addWidget(self.pushButton_one_topic)
+
+        vbox1_7 = QHBoxLayout()
+        vbox1_7.addWidget(self.one_cla_key)
+        vbox1_7.addWidget(self.one_cla_key_in)
+
+        vbox1_77 = QHBoxLayout()
+        vbox1_77.addStretch(5)
+        vbox1_77.addWidget(self.pushButton_one_openaiapi_key)
+
+        vbox1_8 = QHBoxLayout()
+        vbox1_8.addWidget(self.one_cla_google_custom)
+        vbox1_8.addWidget(self.one_cla_google_custom_id_in)
+        vbox1_8.addWidget(self.one_cla_google_custom_pw_in)
+
+        vbox1_88 = QHBoxLayout()
+        vbox1_88.addStretch(5)
+        vbox1_88.addWidget(self.pushButton_one_google_custom)
 
 
         Vbox1 = QVBoxLayout()
@@ -555,9 +653,12 @@ class SecondTab(QWidget):
         Vbox1.addLayout(vbox1_3)
         Vbox1.addLayout(vbox1_4)
         Vbox1.addLayout(vbox1_5)
-        Vbox1.addLayout(vbox1_55)
         Vbox1.addLayout(vbox1_555)
         Vbox1.addLayout(vbox1_6)
+        Vbox1.addLayout(vbox1_7)
+        Vbox1.addLayout(vbox1_77)
+        Vbox1.addLayout(vbox1_8)
+        Vbox1.addLayout(vbox1_88)
 
         Vbox1.addLayout(vbox1_topic)
         Vbox1.addLayout(vbox1_topic_btn)
@@ -786,6 +887,29 @@ class SecondTab(QWidget):
         shcedule = one_cla_id_ + "\n" + one_cla_pw_ + "\n" + one_cla_ps_ + "\n" + one_cla_key_ + "\n" + one_cla_ca_
         dir_path = "C:\\my_games\\" + str(v_.game_folder)
         file_path_one = dir_path + "\\mysettings\\idpw\\onecla.txt"
+        with open(file_path_one, "w", encoding='utf-8-sig') as file:
+            file.write(shcedule)
+
+    def button_event1_openaiapi(self):
+        one_cla_key_ = self.one_cla_key_in.text()
+
+
+
+        shcedule = one_cla_key_
+        dir_path = "C:\\my_games\\" + str(v_.game_folder)
+        file_path_one = dir_path + "\\mysettings\\idpw\\onecla_openaiapi.txt"
+        with open(file_path_one, "w", encoding='utf-8-sig') as file:
+            file.write(shcedule)
+
+    def button_event1_google_custom(self):
+        google_custom_id_in_ = self.one_cla_google_custom_id_in.text()
+        google_custom_id_pw_ = self.one_cla_google_custom_pw_in.text()
+
+
+
+        shcedule = google_custom_id_in_ + "\n" + google_custom_id_pw_
+        dir_path = "C:\\my_games\\" + str(v_.game_folder)
+        file_path_one = dir_path + "\\mysettings\\idpw\\onecla_google_custom.txt"
         with open(file_path_one, "w", encoding='utf-8-sig') as file:
             file.write(shcedule)
 
@@ -2272,6 +2396,9 @@ class game_Playing(QThread):
         import sys
         from PyQt5.QtWidgets import QApplication
         from PyQt5.QtTest import QTest
+        import random
+        from life_tips import life_tips_keyword
+        from trend_search_page import collect_all_topics, filter_topics_by_category
 
         try:
             print("game_Playing")
@@ -2286,8 +2413,28 @@ class game_Playing(QThread):
                 # if result_game == True:
                 print("자동발행 시작")
 
-                result_suggest = suggest_life_tip_topic()
-                print("result_suggest", result_suggest)
+                result_suggest = False
+
+                random_topic = random.randint(1, 2)
+                print("random_topic", random_topic)
+
+                if random_topic == 1:
+
+                    result_suggest = suggest_life_tip_topic()
+                    print("result_suggest", result_suggest)
+
+                else:
+                    topic_list = collect_all_topics()
+
+                    filtered_topics = filter_topics_by_category(topic_list)
+
+                    print("\n🔷 최종 필터링된 블로그 키워드:", filtered_topics)
+                    if len(filtered_topics) > 0:
+                        result_suggest = True
+                        life_tips_keyword(filtered_topics)
+                    else:
+                        print("없..................")
+
                 if result_suggest == True:
 
                     # QTest.qWait(18000000)
