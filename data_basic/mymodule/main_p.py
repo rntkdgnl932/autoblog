@@ -2434,8 +2434,14 @@ class game_Playing(QThread):
                     print("\n🔷 최종 필터링된 블로그 키워드:", filtered_topics)
                     if len(filtered_topics) > 0:
 
-                        result_suggest = suggest_life_tip_topic_issue(filtered_topics)
-                        print("result_suggest", result_suggest)
+                        for i in range(len(filtered_topics)):
+
+                            result_suggest = suggest_life_tip_topic_issue(filtered_topics[i])
+                            print("result_suggest", result_suggest)
+
+                            if result_suggest == True:
+                                break
+                            QTest.qWait(100)
                     else:
                         print("없..................")
 

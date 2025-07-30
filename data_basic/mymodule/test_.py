@@ -52,16 +52,11 @@ def go_test(keyword):
         elif cla == "six":
             plus = 960 * 5
 
+        topic_list = collect_all_topics()
 
-        # suggest_life_tip_topic()
+        filtered_topics = filter_topics_by_category(topic_list)
 
-        # org_name = "국토교통부"
-        #
-        # scan_internet(org_name)
-
-        # fetch_health_titles()
-
-        fetch_health_titles()
+        print("\n🔷 최종 필터링된 블로그 키워드:", filtered_topics)
 
 
 

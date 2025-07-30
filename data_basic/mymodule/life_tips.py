@@ -773,8 +773,8 @@ em { color: #444; font-style: normal; }
 - 신청방법, 신청대상, 지원대상 등 조건이 있다면 최대한 목록과 테이블을 이용하여 시각적으로 유리하게 상세하게 작성
 
 📌 [참조 문구 작성 규칙 — 매우 중요]
-- ❌ "자세한 정보는 xxx 공식 홈페이지를 참조하시기 바랍니다." 이라는 식의 내용 금지
-- ✅ 참조: <a href="https://도메인" target="_blank" rel="noopener">기관명 공식 홈페이지</a>, <a href="https://도메인" target="_blank" rel="noopener">기관명 공식 홈페이지</a>...
+- ❌ "자세한 정보는 xxx 공식 홈페이지를 참조하시기 바랍니다." 라는 식의 문구 절대 금지.
+- ✅ <p>참조: <a href="https://도메인" target="_blank" rel="noopener">기관명 공식 홈페이지</a>, <a href="https://도메인" target="_blank" rel="noopener">기관명 공식 홈페이지</a>.....</p>
 - 소제목 리스트 마지막 본문 내용 아래 맨 마지막 문단에 중복되지 않게 1회만 삽입하여 중복된 느낌이 들지 않도록
   
 📌 [기관 정보 처리 지침]
@@ -1090,7 +1090,7 @@ def suggest_life_tip_topic_issue(keyword):
         # 중복 주제 여부 판단
         score = is_similar_topic(keyword, existing_titles, client)
 
-        if score >= 85:
+        if score >= 80:
             print(f"⚠️ 유사 주제 가능성 높음 (유사도: {score}%)")
 
 
@@ -1099,7 +1099,7 @@ def suggest_life_tip_topic_issue(keyword):
             print("✅ OpenAI 상태 정상. 콘텐츠 작성 시작.")
             life_tips_keyword(keyword)
 
-            print("keyword")
+            print("suggest_life_tip_topic_issue end")
 
             suggest__ = True
 
