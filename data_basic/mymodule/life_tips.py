@@ -668,6 +668,11 @@ def optimize_html_for_seo(html_content, keyword):
 
     return str(soup)
 
+
+
+
+
+
 def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summary="", personal_opinion=""):
     from bs4 import BeautifulSoup
     from datetime import datetime
@@ -675,51 +680,66 @@ def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summa
     print("▶ GPT로 소제목 단위 재구성 시작")
     soup = BeautifulSoup(html_content, 'html.parser')
 
-    # 본문 이미지 추출 및 제거
+    # ✅ 이미지 alt 속성 삽입
     main_image = soup.find("img")
-    img_html = str(main_image).replace("\n", "").strip() if main_image else ""
     if main_image:
+        main_image["alt"] = keyword
+        img_html = str(main_image).replace("\n", "").strip()
         main_image.decompose()
+    else:
+        img_html = ""
 
-    # 본문 영역 확보
-    body_container = soup.body if soup.body else soup
-    if body_container is None:
-        print("❌ [오류] 본문(body) 파싱 실패")
-        return html_content
-
-    # <h2> 기준 섹션 분할 + 첫 번째 h2("목차")는 제외하고 저장
-    sections = []
-    current_section = []
-    toc_section_html = ""
-
-    for elem in body_container.children:
-        if getattr(elem, 'name', None) == "h2":
-            if current_section:
-                sections.append(current_section)
-            current_section = [elem]
-        elif current_section:
-            current_section.append(elem)
-
-    # 마지막 섹션 추가
-    if current_section:
-        sections.append(current_section)
-
-    # 첫 번째 h2가 목차면 따로 저장
-    if sections and sections[0][0].get_text(strip=True) == "목차":
-        toc_section = sections.pop(0)
-        toc_section_html = "".join([str(tag) for tag in toc_section])
-
-    # 날짜 설정
+    # ✅ 날짜 설정
     today = datetime.today().strftime("%Y년 %m월 %d일")
     this_year = datetime.today().year
 
-    # GPT로 소제목별 재작성
+    # ✅ 목차 보존 및 섹션 추출 함수 정의
+    def extract_sections_preserving_toc(soup):
+        body_container = soup.body if soup.body else soup
+        sections = []
+        current_section = []
+        toc_section = []
+
+        for elem in body_container.children:
+            if getattr(elem, 'name', None) == "h2":
+                h2_text = elem.get_text(strip=True)
+                if h2_text == "목차" and not toc_section:
+                    toc_section.append(elem)
+                    next_elem = elem.find_next_sibling()
+                    while next_elem and getattr(next_elem, 'name', None) == "ul":
+                        toc_section.append(next_elem)
+                        next_elem = next_elem.find_next_sibling()
+                else:
+                    if current_section:
+                        sections.append(current_section)
+                    current_section = [elem]
+            elif current_section:
+                current_section.append(elem)
+
+        if current_section:
+            sections.append(current_section)
+
+        toc_section_html = "\n".join([str(tag) for tag in toc_section]) if toc_section else ""
+        return toc_section_html, sections
+
+    # ✅ 목차 및 섹션 추출
+    toc_section_html, sections = extract_sections_preserving_toc(soup)
+
+    # ✅ 스타일 태그 삽입
+    style_tag = """
+<style>
+h2 { margin-top: 40px; color: #0077cc; font-weight: bold; }
+h3 { margin-top: 25px; color: #333; font-weight: bold; }
+ul, table { margin: 10px 0; padding: 0 10px; }
+em { color: #444; font-style: normal; }
+</style>
+    """.strip()
+
+    # ✅ GPT로 소제목별 본문 생성
     new_body = []
     for section in sections:
         h2 = section[0]
         h2_text = h2.get_text(strip=True)
-        if h2_text.lower() == "목차":
-            continue
 
         system_message = (
             "당신은 정부 정책, 지원금, 제도 정보를 전문적으로 안내하는 공공기관 블로그 콘텐츠 작성 전문가입니다. "
@@ -728,48 +748,45 @@ def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summa
         )
 
         prompt = f"""
-        📌 [콘텐츠 작성 목적]
-        - '{keyword}' 주제의 소제목 항목 '{h2_text}'에 대한 블로그 콘텐츠 본문을 작성합니다.
+📌 [콘텐츠 작성 목적]
+- '{keyword}' 주제의 소제목 항목 '{h2_text}'에 대한 블로그 콘텐츠 본문을 작성합니다.
 
-        📌 [콘텐츠 생성 규칙]
-        - 출력은 반드시 **HTML 형식만 사용** (※ Markdown 문법 `###`, `**` 절대 금지)
-        - <h2> 태그는 포함하지 마세요. 본문 내용만 출력하세요.
-        - **소제목 제목 자체는 출력하지 말 것** (이미 시스템에서 삽입됨)
-        - 내용 중 같은 문장 또는 제목의 반복 금지
-        - 정보가 없는 경우 ‘작성 불가’라고 명시하세요. 추정으로 채우지 마세요.
+📌 [콘텐츠 생성 규칙]
+- 출력은 반드시 HTML 형식만 사용 (※ Markdown 문법 ###, ** 절대 금지)
+- <h2> 태그는 포함하지 마세요. 본문 내용만 출력하세요.
+- 소제목 제목 자체는 출력하지 말 것
+- '신청', '조건', '주의' 관련 항목은 반드시 <h3>로 구분 강조
+- <ul> 또는 <table> 등 시각적 구성 포함
+- 중복 문단 금지, 허구 정보 생성 금지
 
-        📌 [정보 최신성 기준]
-        - 작성일 기준: {today}
-        - {this_year}년 이전에 종료된 정책, 제도, 지원금은 전부 제외
-        - 현재 실제 신청 가능한 정책만 포함
+📌 [정보 최신성 기준]
+- 작성일 기준: {today}
+- {this_year}년 이전 종료 정책은 제외
+- 실제 신청 가능한 정책만 포함
 
-        📌 [정보 정확도 및 SEO 지침]
-        - 각 항목은 다음 중 최소 2개 이상 포함:
-            - 수치, 조건, 실제 사례, 운영 기관명
-            - `<table>` 또는 `<ul>` 태그 포함
-            - 명확하고 정확한 표현 사용
-            - 독자들이 시각적으로 보기 편하게.
-        - 중복 문단·중복 제목 생성 금지
-        - 신청방법, 신청대상, 지원대상 등 조건이 있다면 최대한 목록과 테이블을 이용하여 시각적으로 유리하게 상세하게 작성
+📌 [정보 정확도 및 SEO 지침]
+- 각 항목은 다음 중 최소 2개 이상 포함:
+    - 수치, 조건, 실제 사례, 운영 기관명
+    - <table> 또는 <ul> 태그 포함
+    - 명확하고 정확한 표현 사용
+- 중복 문단·중복 제목 생성 금지
+- 신청방법, 신청대상, 지원대상 등 조건이 있다면 최대한 목록과 테이블을 이용하여 시각적으로 유리하게 상세하게 작성
 
-        📌 [참조 문구 작성 규칙 — 매우 중요]
-        - 아래와 같은 문장은 사용 금지:
-            - ❌ "자세한 정보는 xxx 공식 홈페이지를 참조하시기 바랍니다."
-        - 반드시 다음 형식으로 작성할 것:
-            - ✅ 참조: '<a href="https://도메인" target="_blank" rel="noopener">기관명 공식 홈페이지</a>'
-        - 위 문장은 **본문 맨 마지막 문단에 1회만 삽입**하세요. 중복 금지.
-        - 링크 외의 설명 문장은 붙이지 마세요. (예: '자세한 정보는', '참고 자료는' 등 생략)
-
-        📌 [기관 정보 처리 지침]
-        - 전화번호는 실제 존재하는 기관의 공식 대표번호만 사용 (허구 생성 금지)
-        - 홈페이지 링크(URL)는 반드시 실제 존재하는 공식 URL만 사용
-            - 확인되지 않은 URL은 절대 생성하지 말고, "공식 홈페이지 참조"로도 작성하지 말 것
-            - 실제 확인된 URL만 다음 형식으로 출력:
-              `<a href="https://도메인" target="_blank" rel="noopener">기관명 공식 홈페이지</a>`
-            - URL은 반드시 사람이 직접 방문 가능한지 검증된 주소만 사용
-
-        ✅ 반드시 HTML만 출력  
-        ❌ Markdown 문법 (`###`, `**`), 허위 링크, 허구 전화번호, 중복 소제목 금지
+📌 [참조 문구 작성 규칙 — 매우 중요]
+- ❌ "자세한 정보는 xxx 공식 홈페이지를 참조하시기 바랍니다." 이라는 식의 내용 금지
+- ✅ 참조: <a href="https://도메인" target="_blank" rel="noopener">기관명 공식 홈페이지</a>, <a href="https://도메인" target="_blank" rel="noopener">기관명 공식 홈페이지</a>...
+- 소제목 리스트 마지막 본문 내용 아래 맨 마지막 문단에 중복되지 않게 1회만 삽입하여 중복된 느낌이 들지 않도록
+  
+📌 [기관 정보 처리 지침]
+- 전화번호는 실제 존재하는 기관의 공식 대표번호만 사용 (허구 생성 금지)
+- 홈페이지 링크는 반드시 실제 존재하는 공식 URL만 사용, 존재하지 않는다면 링크사용 안해도 됨
+  
+  
+📌 [정보 탐색 및 작성 조건 — 매우 중요]
+- 작성하려는 주제에 대해 **정확한 정보가 존재한다면**, 웹 검색 또는 학습된 지식 기반으로 최대한 구체적으로 작성하세요.
+- 동일 주제 관련 제도, 제도명, 운영기관, 혜택 사례 등을 바탕으로 정보 **재구성** 가능
+- 허위 정보는 절대 금지, 정보가 확실히 없을 때만 ‘작성 불가’로 표시하지 말고 기존의 HTML 원문 내용을 그대로 재사용하세요.
+  
         """
 
         try:
@@ -786,40 +803,54 @@ def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summa
             print(f"❌ GPT 재구성 실패 - {h2_text}: {e}")
             rewritten_html = f"<p>{h2_text} 관련 내용을 준비하지 못했습니다.</p>"
 
-        new_body.append(str(h2))
-        new_body.append(rewritten_html)
+        new_body.append("\n" + str(h2))
+        new_body.append("\n" + rewritten_html)
 
-    # 요약 및 개인 의견 추가
+    # ✅ 요약 및 의견
+
+    # ✅ 요약 및 의견 추가
     extra_parts = []
     if one_line_summary:
         cleaned_summary = one_line_summary.replace("한줄요약:", "").strip()
-        extra_parts.append(f"<br><p><strong>한줄요약:</strong> {cleaned_summary}</p>")
+        extra_parts.append(f"<p></p><br><p><strong>한줄요약:</strong> {cleaned_summary}</p>")
     if personal_opinion:
         cleaned_opinion = personal_opinion.replace("개인 의견:", "").strip()
         extra_parts.append(f"<p><em style='color:#555; font-weight:bold;'>개인 의견: {cleaned_opinion}</em></p>")
 
-    # ✅ 전체 본문 구성 (목차 → 본문 → 요약/의견)
-    full_body = "".join([toc_section_html] + new_body + extra_parts)
+    # extra_parts = []
+    # if one_line_summary:
+    #     extra_parts.append(f"\n<p><strong>한줄요약:</strong> {one_line_summary.strip()}</p>")
+    # if personal_opinion:
+    #     extra_parts.append(f"\n<p><em style='color:#555; font-weight:bold;'>개인 의견: {personal_opinion.strip()}</em></p>")
 
-    # meta description 내용 추출
+    # ✅ 메타 설명
     meta_description = f"{keyword}에 대한 실생활 정보 및 가이드입니다."
     meta_description_paragraph = f'<p style="color:#888;"><strong>📌 </strong> {meta_description}</p>'
 
-    # 최종 HTML 조립 (Gutenberg 블록 에디터 대응)
-    # 최종 HTML 조립 (Gutenberg 블록 에디터 대응)
+    # ✅ 태그 생성 (keyword 기준 + GPT 추출)
+    tag_prompt = f"다음 키워드 '{keyword}'를 중심으로 블로그 본문에서 사용할 태그를 5~8개 추출해줘. '#' 없이 쉼표로 구분하고, 중복 표현 없이 핵심어로 작성해줘."
+    try:
+        tag_response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": tag_prompt}],
+            temperature=0.3
+        )
+        tag_line = tag_response.choices[0].message.content.strip()
+        tag_html = f"<p style='color:#666;'>#태그: {tag_line}</p>"
+    except Exception as e:
+        tag_html = ""
+
+    # ✅ 본문 구성
+    full_body = "\n".join([style_tag, toc_section_html] + new_body + extra_parts + [tag_html])
+
+    # ✅ 최종 HTML 조립
     final_html = f"""<!-- wp:html -->
-    {img_html}
-    {meta_description_paragraph}
-    {full_body}
-    <!-- /wp:html -->""".strip()
+{img_html}
+{meta_description_paragraph}
+{full_body}
+<!-- /wp:html -->""".strip()
 
     return final_html
-#
-#
-
-
-
-
 
 
 
@@ -853,29 +884,64 @@ def is_similar_topic(new_topic, existing_titles, client):
         print(f"⚠️ 예상하지 못한 응답: {result}")
         return 0
 
+# ✅ 함수: 글 전체 제목 가져오기
+# def load_existing_titles():
+#     import requests
+#
+#     titles = []
+#     page = 1
+#
+#     while True:
+#         url = f"{v_.domain_adress}/wp-json/wp/v2/posts?per_page=100&page={page}"
+#         resp = requests.get(url)
+#         if resp.status_code != 200:
+#             break
+#
+#         data = resp.json()
+#         if not data:
+#             break
+#
+#         titles += [post['title']['rendered'] for post in data]
+#         page += 1
+#
+#     print(f"총 {len(titles)}개의 게시글 제목을 가져왔습니다.")
+#     return titles
+
+# ✅ 수정된 함수: 최신 글 20개 제목만 가져오기
+# def load_existing_titles():
+#     import requests
+#
+#     url = f"{v_.domain_adress}/wp-json/wp/v2/posts?per_page=20&page=1"
+#     resp = requests.get(url)
+#
+#     if resp.status_code != 200:
+#         print("❌ 제목 가져오기 실패:", resp.status_code)
+#         return []
+#
+#     data = resp.json()
+#     titles = [post['title']['rendered'] for post in data]
+#
+#     print(f"📌 최신 글 {len(titles)}개의 제목을 가져왔습니다.")
+#     return titles
+
+
+# ✅ 최신 글 50개 제목 가져오기 함수
 
 def load_existing_titles():
     import requests
 
-    titles = []
-    page = 1
+    url = f"{v_.domain_adress}/wp-json/wp/v2/posts?per_page=50&page=1&orderby=date&order=desc"
+    resp = requests.get(url)
 
-    while True:
-        url = f"{v_.domain_adress}/wp-json/wp/v2/posts?per_page=100&page={page}"
-        resp = requests.get(url)
-        if resp.status_code != 200:
-            break
+    if resp.status_code != 200:
+        print("❌ 제목 가져오기 실패:", resp.status_code)
+        return []
 
-        data = resp.json()
-        if not data:
-            break
+    data = resp.json()
+    titles = [post['title']['rendered'] for post in data]
 
-        titles += [post['title']['rendered'] for post in data]
-        page += 1
-
-    print(f"총 {len(titles)}개의 게시글 제목을 가져왔습니다.")
+    print(f"📌 최신 글 {len(titles)}개의 제목을 가져왔습니다.")
     return titles
-
 
 def suggest_life_tip_topic():
     from openai import OpenAI
@@ -982,11 +1048,61 @@ def suggest_life_tip_topic():
 
         else:
             print("✅ OpenAI 상태 정상. 콘텐츠 작성 시작.")
-            # life_tips_keyword(keyword)
+            life_tips_keyword(keyword)
 
             print("keyword")
 
             suggest__ = True
 
     return suggest__
+
+
+
+def suggest_life_tip_topic_issue(keyword):
+    from openai import OpenAI
+    import variable as v_
+
+    from datetime import datetime
+    today = datetime.today().strftime("%Y년 %m월 %d일")
+    month = datetime.today().month
+
+
+    suggest__ = False
+
+    if "none" in v_.wd_id:
+        print("v_.wd_id", v_.wd_id)
+    elif "none" in v_.wd_pw:
+        print("v_.wd_pw", v_.wd_pw)
+    elif "none" in v_.api_key:
+        print("v_.api_key", v_.api_key)
+    elif "none" in v_.domain_adress:
+        print("v_.domain_adress", v_.domain_adress)
+    elif "none" in v_.my_category:
+        print("v_.my_category", v_.my_category)
+
+    else:
+        print("▶ suggest_life_tip_topic_issue", keyword)
+        client = OpenAI(api_key=v_.api_key, timeout=200)
+
+        # 기존 제목 가져오기
+        existing_titles = load_existing_titles()
+
+        # 중복 주제 여부 판단
+        score = is_similar_topic(keyword, existing_titles, client)
+
+        if score >= 85:
+            print(f"⚠️ 유사 주제 가능성 높음 (유사도: {score}%)")
+
+
+
+        else:
+            print("✅ OpenAI 상태 정상. 콘텐츠 작성 시작.")
+            life_tips_keyword(keyword)
+
+            print("keyword")
+
+            suggest__ = True
+
+    return suggest__
+
 

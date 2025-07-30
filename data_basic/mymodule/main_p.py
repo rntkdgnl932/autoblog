@@ -2399,6 +2399,7 @@ class game_Playing(QThread):
         import random
         from life_tips import life_tips_keyword
         from trend_search_page import collect_all_topics, filter_topics_by_category
+        from life_tips import suggest_life_tip_topic_issue
 
         try:
             print("game_Playing")
@@ -2424,14 +2425,17 @@ class game_Playing(QThread):
                     print("result_suggest", result_suggest)
 
                 else:
+
+
                     topic_list = collect_all_topics()
 
                     filtered_topics = filter_topics_by_category(topic_list)
 
                     print("\n🔷 최종 필터링된 블로그 키워드:", filtered_topics)
                     if len(filtered_topics) > 0:
-                        result_suggest = True
-                        life_tips_keyword(filtered_topics)
+
+                        result_suggest = suggest_life_tip_topic_issue(filtered_topics)
+                        print("result_suggest", result_suggest)
                     else:
                         print("없..................")
 
