@@ -789,7 +789,7 @@ em { color: #444; font-style: normal; }
         extra_parts.append(f"<p></p><br><p><strong>한줄요약:</strong> {cleaned_summary}</p>")
     if personal_opinion:
         cleaned_opinion = personal_opinion.replace("개인 의견:", "").strip()
-        extra_parts.append(f"<p><em style='color:#555; font-weight:bold;'>개인 의견: {cleaned_opinion}</em></p>")
+        extra_parts.append(f"<p><em style='color:#555; font-weight:bold; font-style: italic; '>{cleaned_opinion}</em></p>")
 
 
     # ✅ 메타 설명
