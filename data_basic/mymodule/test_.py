@@ -29,7 +29,7 @@ def go_test(keyword):
     import urllib.parse
     from life_tips import life_tips_keyword, check_openai_ready, suggest_life_tip_topic
     from trend_search_page import get_zum_ai_issue_trends, get_google_trending_keywords, get_youtube_trending_titles, \
-        fetch_health_titles, collect_all_topics, filter_topics_by_category
+        fetch_health_titles, collect_all_topics, filter_topics_by_category, search_naver_blog_top_post
     from organization_info import scan_internet
 
     try:
@@ -52,11 +52,7 @@ def go_test(keyword):
         elif cla == "six":
             plus = 960 * 5
 
-        topic_list = collect_all_topics()
-
-        filtered_topics = filter_topics_by_category(topic_list)
-
-        print("\n🔷 최종 필터링된 블로그 키워드:", filtered_topics)
+        search_naver_blog_top_post("전기요금 할인 제도")
 
 
 

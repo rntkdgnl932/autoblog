@@ -2,32 +2,19 @@
 # 카테고리: 생활 팁과 정보 (Blue)
 # 모델: GPT-4o 전면 사용
 
-import requests
-import base64
-from io import BytesIO
-from PIL import Image
-from wordpress_xmlrpc.methods.media import UploadFile
-from wordpress_xmlrpc.compat import xmlrpc_client
-from bs4 import BeautifulSoup
 import os
 import requests
 import base64
 from io import BytesIO
 from PIL import Image
-from bs4 import BeautifulSoup
-from slugify import slugify
 from openai import OpenAI
-from wordpress_xmlrpc import Client, WordPressPost
-from wordpress_xmlrpc.methods.posts import NewPost
-from wordpress_xmlrpc.methods.media import UploadFile
+from wordpress_xmlrpc import Client
 from wordpress_xmlrpc.compat import xmlrpc_client
 
 
 import variable as v_
 
 # ✅ OpenAI + WordPress 클라이언트 설정
-thismykey_one = "none"
-thismycategory_one = "none"
 
 dir_path = "C:\\my_games\\" + str(v_.game_folder)
 file_path_one = dir_path + "\\mysettings\\idpw\\onecla.txt"
@@ -75,8 +62,6 @@ if os.path.isfile(file_path_two) == True:
         two_pw = thismypw_two
 else:
     print('two 파일 없당')
-    thismyid_two = 'none'
-    thismyps_two = 'none'
 client = OpenAI(api_key=v_.api_key, timeout=200)
 wp = Client(f"{v_.domain_adress}/xmlrpc.php", v_.wd_id, v_.wd_pw)
 CATEGORY = v_.my_category
@@ -293,51 +278,8 @@ def life_tips_keyword(keyword):
     article = response.choices[0].message.content.strip().replace("```html", "").replace("```", "")
     life_tips_start(article, keyword)
 
-def crawling_site(url):
-    import requests
-    from bs4 import BeautifulSoup
-    from openai import OpenAI
-
-    print(f"▶ 사이트 크롤링 요청: {url}")
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    try:
-        resp = requests.get(url, timeout=200, headers=headers)
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, 'html.parser')
-
-        if soup.article:
-            data = soup.article.get_text(separator="\n", strip=True)
-        elif soup.find("div", class_="content"):
-            data = soup.find("div", class_="content").get_text(separator="\n", strip=True)
-        else:
-            data = soup.get_text(separator="\n", strip=True)
-
-        print("✅ 크롤링 성공")
-
-        print("▶ 키워드 자동 추출 요청")
-        client = OpenAI(api_key=v_.api_key, timeout=200)
-        prompt = f"""
-        다음은 블로그 본문 초안이야. 이 내용의 핵심 키워드를 한 단어나 짧은 구로 추출해줘.
-        제목이 아니라 SEO용 핵심 키워드 형태로 추출해줘.
-        [본문]
-        {data}
-        """
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.4
-        )
-        keyword = response.choices[0].message.content.strip()
-        print(f"🔑 자동 추출된 키워드: {keyword}")
-
-        cleaned_data = data.replace("```html", "").replace("```", "")
-        life_tips_start(cleaned_data, keyword)
-
-    except Exception as e:
-        print(f"⚠️ 크롤링 실패: {e}")
 
 def life_tips_start(article, keyword):
-    import os
     from bs4 import BeautifulSoup
     from slugify import slugify
     from openai import OpenAI
@@ -377,8 +319,7 @@ def life_tips_start(article, keyword):
     2. 반드시 오늘 날짜 기준으로 최신의 것으로 구성.
        - 예를 들어 각종 정책, 지원금, 신청방법 등의 주제로 작성하는데 오늘 날짜 기준으로 최신 내용으로 이루어질 것.
        - 시간이 3개월 이상 지난 내용은 반드시 현재에도 그 내용이 유효한지 검사
-    3. <목차> 라는 소제목을 제일 먼저 작성하고 아래에는 <ul> 리스트로 소제목을 작성하고 그 리스트가 밑에 생성된 소제목에 링크 되도록.  
-    4. 내용은 다음 조건을 **모두 충족해야 합니다**:  
+    3. 내용은 다음 조건을 **모두 충족해야 합니다**:  
        - 추상적 설명 제거, 실질적 정보로 구성 (신청 대상, 조건, 절차, 금액, 예시 등)  
        - 정보 출처가 명확하되, “자세한 내용은 링크 참조” 금지 → **내용을 직접 서술로 대체**  
        - **공식기관이나 제도 문서처럼** 수치, 기간, 조건, 사례, 필요서류 등을 명확히 제시  
@@ -806,7 +747,40 @@ em { color: #444; font-style: normal; }
         new_body.append("\n" + str(h2))
         new_body.append("\n" + rewritten_html)
 
-    # ✅ 요약 및 의견
+    # ✅ 목차 추가
+
+    system_message = (
+        "당신은 정부 정책, 지원금, 제도 정보를 전문적으로 안내하는 공공기관 블로그 콘텐츠 작성 전문가입니다. "
+        "절대 허위 정보를 생성하지 않으며, 전화번호나 웹사이트 주소는 존재하는 공식 정보만 사용합니다. "
+        "AI 흔적을 남기지 마세요."
+    )
+
+    prompt = f"""
+📌 [콘텐츠 작성 목적]
+- 여기 콘텐츠에 담겨진 내용을 분석해서 '<목차>' 라는 소제목을 제일 먼저 작성하고 소제목 아래 내용에는 <ul> 리스트로 소제목을 작성하고 그 리스트가 밑에 생성된 소제목에 링크 되도록. 
+
+📌 [콘텐츠]
+- {new_body}
+
+📌 [콘텐츠 배치 순서]
+- 생성된 '<목차>' 라는 소제목을 가장 위에 배치하고 그 아래에 리스트, {new_body} 순으로 배치
+    """
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3
+        )
+        rewritten_html = response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"❌ GPT 재구성 실패 - {h2_text}: {e}")
+        rewritten_html = f"<p>{h2_text} 관련 내용을 준비하지 못했습니다.</p>"
+
+    body_html = f"{rewritten_html}"  # GPT가 만든 전체 HTML
 
     # ✅ 요약 및 의견 추가
     extra_parts = []
@@ -817,11 +791,6 @@ em { color: #444; font-style: normal; }
         cleaned_opinion = personal_opinion.replace("개인 의견:", "").strip()
         extra_parts.append(f"<p><em style='color:#555; font-weight:bold;'>개인 의견: {cleaned_opinion}</em></p>")
 
-    # extra_parts = []
-    # if one_line_summary:
-    #     extra_parts.append(f"\n<p><strong>한줄요약:</strong> {one_line_summary.strip()}</p>")
-    # if personal_opinion:
-    #     extra_parts.append(f"\n<p><em style='color:#555; font-weight:bold;'>개인 의견: {personal_opinion.strip()}</em></p>")
 
     # ✅ 메타 설명
     meta_description = f"{keyword}에 대한 실생활 정보 및 가이드입니다."
@@ -841,7 +810,8 @@ em { color: #444; font-style: normal; }
         tag_html = ""
 
     # ✅ 본문 구성
-    full_body = "\n".join([style_tag, toc_section_html] + new_body + extra_parts + [tag_html])
+    full_body = "\n".join([style_tag, body_html] + extra_parts + [tag_html])
+    # full_body = "\n".join([style_tag, toc_section_html] + new_body + extra_parts + [tag_html])
 
     # ✅ 최종 HTML 조립
     final_html = f"""<!-- wp:html -->

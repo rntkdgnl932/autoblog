@@ -280,4 +280,58 @@ def filter_topics_by_category(topic_list):
         return []
 
 
+def search_naver_blog_top_post(keyword):
+    from selenium import webdriver
+    from selenium.webdriver.chrome.service import Service
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    from webdriver_manager.chrome import ChromeDriverManager
+    import time
+
+    options = Options()
+    # options.add_argument('--headless')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36")
+
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
+    try:
+        query = keyword.replace(" ", "+")
+        url = f"https://search.naver.com/search.naver?where=view&query={query}&sm=tab_opt"
+        driver.get(url)
+
+        # 요소가 로드될 때까지 최대 10초 대기
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "a.api_txt_lines"))
+        )
+
+        elements = driver.find_elements(By.CSS_SELECTOR, "a.api_txt_lines")
+        for el in elements:
+            href = el.get_attribute("href")
+            if "blog.naver.com" in href:
+                print("✅ 최상단 블로그 링크:", href)
+                return href
+
+        print("❌ 블로그 링크를 찾을 수 없습니다.")
+        return None
+
+    except Exception as e:
+        print("❌ 검색 중 오류:", str(e))
+        print("🧪 현재 URL:", driver.current_url)
+        print("📄 현재 페이지 길이:", len(driver.page_source))
+        with open("debug_page.html", "w", encoding="utf-8") as f:
+            f.write(driver.page_source)
+        return None
+
+    finally:
+        driver.quit()
+
+
+
+
+# 예시
+# search_naver_blog_top_post("전기요금 할인 제도")
 
