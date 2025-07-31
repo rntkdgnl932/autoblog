@@ -813,20 +813,58 @@ em { color: #444; font-style: normal; }
     full_body = "\n".join([style_tag, body_html] + extra_parts + [tag_html])
     # full_body = "\n".join([style_tag, toc_section_html] + new_body + extra_parts + [tag_html])
 
+    # ✅ 메타 태그 삽입용 <meta> (SEO 목적)
+    meta_content = cleaned_summary if cleaned_summary else f"{keyword}에 대한 정보 요약입니다."
+    meta_tag = f'<meta name="description" content="{meta_content}">'
+
     # ✅ 최종 HTML 조립
     final_html = f"""<!-- wp:html -->
-{img_html}
-{meta_description_paragraph}
-{full_body}
-<!-- /wp:html -->""".strip()
+    {meta_tag}
+    {img_html}
+    {meta_description_paragraph}
+    {full_body}
+    <!-- /wp:html -->""".strip()
+
+    # ✅ <a> 태그 중첩 제거 처리
+    final_html = postprocess_html_for_blog(final_html, keyword)
 
     return final_html
+#############후처리
+def postprocess_html_for_blog(html: str, keyword: str) -> str:
+    html = remove_nested_a_tags(html)
+    html = remove_whitespace_before_images(html)
+    html = clean_ul_paragraphs(html)
+    html = boldify_keyword_once(html, keyword)
+    return html
 
 
+def remove_nested_a_tags(html: str) -> str:
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, "html.parser")
+
+    for a_tag in soup.find_all("a"):
+        nested_links = a_tag.find_all("a")
+        for nested in nested_links:
+            nested.unwrap()
+    return str(soup)
+def remove_whitespace_before_images(html: str) -> str:
+    import re
+    return re.sub(r'(\s*<br\s*/?>\s*)*(<img[^>]+>)', r'\2', html)
+def clean_ul_paragraphs(html: str) -> str:
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, "html.parser")
+
+    for ul in soup.find_all("ul"):
+        for p in ul.find_all("p"):
+            p.unwrap()
+    return str(soup)
+def boldify_keyword_once(html: str, keyword: str) -> str:
+    import re
+    pattern = re.escape(keyword)
+    return re.sub(pattern, f"<strong>{keyword}</strong>", html, count=1)
 
 
-
-
+#########################
 
 def is_similar_topic(new_topic, existing_titles, client):
     """
