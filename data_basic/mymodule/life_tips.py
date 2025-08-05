@@ -78,7 +78,7 @@ def summarize_for_description(client, content, title=None, keyword=None):
     summary_target = textwrap.shorten(content, width=1800, placeholder="...")  # 문장 잘림 최소화
     keyword_line = f"이 내용은 '{keyword}'에 관한 블로그 본문입니다." if keyword else ""
 
-    system_msg = "당신은 블로그 전문 에디터입니다. SEO를 고려한 요약 문장을 작성합니다."
+    system_msg = f"당신은 '{v_.my_topic}' 주제에 특화된 전문 블로그 기획자입니다. SEO를 고려한 요약 문장을 작성합니다."
 
     prompt = f"""
     {keyword_line}
@@ -262,8 +262,8 @@ def life_tips_keyword(keyword):
             {
                 "role": "system",
                 "content": (
-                    "당신은 정보성 블로그 콘텐츠를 전문적으로 작성하는 작가입니다. "
-                    "정책, 지원금, 제도 등을 실제로 조사해 요약하는 방식으로, "
+                    f"당신은 '{v_.my_topic}' 주제에 특화된 전문 블로그 기획자입니다. "
+                    "실제로 조사해 요약하는 방식으로, "
                     "정확하고 감성적인 콘텐츠를 작성해야 합니다. "
                     "특히 독자가 실질적으로 도움을 받을 수 있도록 유효한 최신 정보만 반영해야 합니다."
                 )
@@ -386,8 +386,7 @@ def life_tips_start(article, keyword):
             {
                 "role": "system",
                 "content": (
-                    "당신은 정보성 블로그 콘텐츠를 전문적으로 작성하는 작가입니다. "
-                    "특히 최신 정부 정책, 지원금, 세금 제도 등에 대한 글을 작성하며, "
+                    f"당신은 '{v_.my_topic}' 주제에 특화된 전문 블로그 기획자입니다. "
                     "독자가 다른 사이트를 열지 않아도 될 만큼 상세하고 정확하게 설명해야 합니다. "
                     "공식 기관의 설명처럼 전문성과 신뢰도를 유지하되, "
                     "블로그 스타일로 자연스럽고 매끄럽게 작성하는 능력이 중요합니다. "
@@ -479,7 +478,6 @@ def life_tips_start(article, keyword):
     if thumb_media:
         res = wp.call(UploadFile(thumb_media))
         thumbnail_id = getattr(res, "id", res["id"])
-        # thumb_desc = summarize_for_description(client, article)
         thumb_desc = summarize_for_description(client, body_html, title=title, keyword=keyword)
     else:
         thumbnail_id = None
@@ -514,7 +512,8 @@ def life_tips_start(article, keyword):
         f"<img src='{scene_url}' style='display:block; margin:auto;' alt='{keyword}'><br>{body_html}",
         keyword,
         one_line_summary=one_line_summary,
-        personal_opinion=personal_opinion
+        personal_opinion=personal_opinion,
+        this_title=title
     )
 
     print("gpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_html")
@@ -667,7 +666,7 @@ def optimize_html_for_seo(html_content, keyword):
     return str(soup)
 
 
-def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summary="", personal_opinion=""):
+def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summary="", personal_opinion="", this_title=""):
     from bs4 import BeautifulSoup
     from datetime import datetime
 
@@ -747,7 +746,7 @@ em { color: #444; font-style: normal; }
         h2_text = h2.get_text(strip=True)
 
         system_message = (
-            "당신은 정부 정책, 지원금, 제도 정보를 전문적으로 안내하는 공공기관 블로그 콘텐츠 작성 전문가입니다. "
+            f"당신은 '{v_.my_topic}' 주제에 특화된 전문 블로그 기획자입니다. "
             "절대 허위 정보를 생성하지 않으며, 전화번호나 웹사이트 주소는 존재하는 공식 정보만 사용합니다. "
             "AI 스타일의 흔적을 남기지 않고, 자연스럽고 신뢰감 있는 공공 콘텐츠를 생성합니다."
             "팩트 체크를 꼼꼼히 하는 누구나 신뢰하는 전문가입니다. "
@@ -813,7 +812,7 @@ em { color: #444; font-style: normal; }
         # ✅ 목차 추가
 
     system_message = (
-        "당신은 정부 정책, 지원금, 제도 정보를 전문적으로 안내하는 공공기관 블로그 콘텐츠 작성 전문가입니다. "
+        f"당신은 '{v_.my_topic}' 주제에 특화된 전문 블로그 기획자입니다. "
         "절대 허위 정보를 생성하지 않으며, 전화번호나 웹사이트 주소는 존재하는 공식 정보만 사용합니다. "
         "AI 흔적을 남기지 마세요."
     )
@@ -856,7 +855,9 @@ em { color: #444; font-style: normal; }
             f"<p><em style='color:#555; font-weight:bold; font-style: italic; '>{cleaned_opinion}</em></p>")
 
     # ✅ 메타 설명
-    meta_description = f"{keyword}에 대한 실생활 정보 및 가이드입니다."
+
+    meta_description = summarize_for_description(client, body_html, title=this_title, keyword=keyword)
+    # meta_description = f"{keyword}에 대한 실생활 정보 및 가이드입니다."
     meta_description_paragraph = f'<p style="color:#888;"><strong>📌 </strong> {meta_description}</p>'
 
     # ✅ JSON-LD FAQ 생성 (GPT 활용)
