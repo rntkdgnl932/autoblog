@@ -236,6 +236,7 @@ def life_tips_keyword(keyword):
     이 콘텐츠는 **{today} 기준으로 최신 정보만 포함**되어야 합니다.
 
     - **{this_year}년 이전에 발표된 정책·제도·지원금은 제외**
+    - **{today}년 기준으로 신청기간 지난 정책·제도·지원금은 제외**
     - **현재 시점에서 실제로 신청 가능한 정보**만 반영
     - 특히 '신청방법', '지원조건', '대상자' 등은 **오늘 날짜 기준으로 유효한 내용만 포함**
 
@@ -338,6 +339,7 @@ def life_tips_start(article, keyword):
        - 내용에 링크 넣을 경우, 실제로 그 사이트 존재 유무 판단하고 링크 입력하기
        - 신청 방법/제한사항/사례 설명  
        - **표 1개 이상 또는 리스트 1개 이상 반드시 포함 (누락 금지)**
+    - <h3> 제목은 동일한 단어 반복을 피하고, 문맥에 맞는 다양한 표현으로 작성할 것
 
     [소제목 구성 예시]  
     - 정보형: OO이란? 어떤 기준이 있을까  
@@ -526,11 +528,8 @@ def life_tips_start(article, keyword):
     # ✅ 기관 정보 기반 교체 및 최종 업로드 준비
     optimized_html = last_upload_ready(gpt_generated_html)
 
-    # optimized_html = postprocess_html_for_blog(final_html, keyword=keyword).strip()
-    #
-    # print("optimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_html")
-    # print(optimized_html)
-    # print("optimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_htmloptimized_html")
+    # ✅ 3. GPT 기반 키워드 자동 추출
+    auto_tags = extract_tags_from_html_with_gpt(client, optimized_html, keyword)
 
     #########$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
@@ -538,13 +537,14 @@ def life_tips_start(article, keyword):
 
     post.excerpt = thumb_desc
     post.terms_names = {
-        'category': [safe_term(CATEGORY)],
-        'post_tag': list(set([
-            safe_term(keyword),
-            "생활정보",
-            "실생활"
-        ]))
+        'category': [safe_term_cate(CATEGORY)],
+        'post_tag': list(set([safe_term_word(keyword)] + [safe_term_word(t) for t in auto_tags]))
     }
+    post.custom_fields = [
+        {'key': 'rank_math_description', 'value': thumb_desc},
+        {'key': 'rank_math_focus_keyword', 'value': keyword},  # 메인 키워드
+        {'key': 'rank_math_secondary_keywords', 'value': ", ".join(auto_tags)}  # 보조 키워드
+    ]
     if thumbnail_id:
         post.thumbnail = thumbnail_id
     post.post_status = 'publish'
@@ -555,9 +555,66 @@ def life_tips_start(article, keyword):
         wp.call(NewPost(post))
         print(f"✅ 게시 완료: {title}")
 
-def safe_term(term):
-    # 너무 길면 짜르고, 빈 값 방지
-    return term.strip()[:40] if term and isinstance(term, str) else "일반"
+
+def extract_tags_from_html_with_gpt(client, html_content, keyword):
+    prompt = f"""
+    다음은 블로그 콘텐츠 HTML입니다. 본문에 실제 등장한 주요 용어 중에서, 블로그 태그로 적합한 핵심 키워드 5~7개를 **중복 없이** 뽑아주세요.
+
+    📌 조건:
+    - 본문에 실제 존재하는 단어만 사용합니다.
+    - 각 키워드는 1~3단어로 짧고 명확해야 합니다.
+    - 형식 설명 없이 아래 예시처럼 **JSON 배열만** 반환하세요.
+
+    예시 출력:
+    ["전기차", "요금 할인", "환경부", "신청 방법", "지원 대상"]
+
+    🔽 HTML 콘텐츠:
+    {html_content}
+    """
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3
+        )
+        import json
+        import re
+        # GPT 응답에서 JSON 배열만 추출
+        content = response.choices[0].message.content.strip()
+        json_match = re.search(r'\[\s*"[^"]+"\s*(,\s*"[^"]+"\s*)*\]', content)
+
+        if json_match:
+            return json.loads(json_match.group())
+        else:
+            print("no json_match", content)
+
+        print(f"⚠️ JSON 형식 불일치:\n{content}")
+        return []
+
+    except Exception as e:
+        print(f"❌ 태그 추출 실패: {e}")
+        return []
+
+
+def safe_term_cate(term):
+    import re
+    # 너무 길면 짜르고, 빈 값 방지, (태그에 특수문자 제거 포함
+    if not term or not isinstance(term, str):
+        return "일반"
+    term = term.strip()[:40]
+    return term
+
+def safe_term_word(term):
+    import re
+    # 너무 길면 짜르고, 빈 값 방지, (태그에 특수문자 제거 포함
+    if not term or not isinstance(term, str):
+        return "일반"
+    term = term.strip()[:40]
+    # 특수문자 제거, 공백 → 하이픈 변환
+    term = re.sub(r"[^\w가-힣\s-]", "", term)
+    term = re.sub(r"\s+", "-", term)
+    return term
 
 def optimize_html_for_seo(html_content, keyword):
     from bs4 import BeautifulSoup
@@ -610,10 +667,6 @@ def optimize_html_for_seo(html_content, keyword):
     return str(soup)
 
 
-
-
-
-
 def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summary="", personal_opinion=""):
     from bs4 import BeautifulSoup
     from datetime import datetime
@@ -622,13 +675,16 @@ def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summa
     soup = BeautifulSoup(html_content, 'html.parser')
 
     # ✅ 이미지 alt 속성 삽입
+
     main_image = soup.find("img")
     if main_image:
-        main_image["alt"] = keyword
+        plain_keyword = BeautifulSoup(keyword, "html.parser").get_text().strip()
+        main_image["alt"] = plain_keyword
         img_html = str(main_image).replace("\n", "").strip()
         main_image.decompose()
     else:
         img_html = ""
+        print("⚠️ 이미지가 없습니다.")
 
     # ✅ 날짜 설정
     today = datetime.today().strftime("%Y년 %m월 %d일")
@@ -676,59 +732,65 @@ em { color: #444; font-style: normal; }
 </style>
     """.strip()
 
-    # ✅ GPT로 소제목별 본문 생성
+    # ✅ GPT로 소제목별 본문 생성 (중복 방지 + 문맥 기반 생성 방식)
     new_body = []
-    for section in sections:
+
+    # 전체 소제목 리스트 먼저 수집
+    h2_list = [h2.get_text(strip=True) for h2, *_ in sections]
+
+    print("🔍 섹션 개수:", len(sections))
+
+    for i, section in enumerate(sections):
+
+        print(f"[{i}] 소제목: {section[0].get_text(strip=True)}")
         h2 = section[0]
         h2_text = h2.get_text(strip=True)
 
         system_message = (
             "당신은 정부 정책, 지원금, 제도 정보를 전문적으로 안내하는 공공기관 블로그 콘텐츠 작성 전문가입니다. "
             "절대 허위 정보를 생성하지 않으며, 전화번호나 웹사이트 주소는 존재하는 공식 정보만 사용합니다. "
-            "AI 흔적을 남기지 마세요."
+            "AI 스타일의 흔적을 남기지 않고, 자연스럽고 신뢰감 있는 공공 콘텐츠를 생성합니다."
+            "팩트 체크를 꼼꼼히 하는 누구나 신뢰하는 전문가입니다. "
         )
 
+        # 소제목 리스트를 GPT에게 함께 전달해, 현재 소제목만 작성하되 중복 방지
+        other_titles = [t for j, t in enumerate(h2_list) if j != i][:9]  # 최대 9개
+        other_titles_text = "\n".join([f"- {t}" for t in other_titles])
+
         prompt = f"""
-📌 [콘텐츠 작성 목적]
-- '{keyword}' 주제의 소제목 항목 '{h2_text}'에 대한 블로그 콘텐츠 본문을 작성합니다.
+    📌 [작성 목적]
+    - '{keyword}' 주제의 블로그 콘텐츠에서, 다음 소제목 항목을 작성합니다: <strong>{h2_text}</strong>
 
-📌 [콘텐츠 생성 규칙]
-- 출력은 반드시 HTML 형식만 사용 (※ Markdown 문법 ###, ** 절대 금지)
-- <h2> 태그는 포함하지 마세요. 본문 내용만 출력하세요.
-- 소제목 제목 자체는 출력하지 말 것
-- '신청', '조건', '주의' 관련 항목은 반드시 <h3>로 구분 강조
-- <ul> 또는 <table> 등 시각적 구성 포함
-- 중복 문단 금지, 허구 정보 생성 금지
+    📌 [주의 사항]
+    - 아래 소제목들과 내용이 **절대 중복되지 않도록** 구별된 내용을 구성하세요:
+    {other_titles_text}
 
-📌 [정보 최신성 기준]
-- 작성일 기준: {today}
-- {this_year}년 이전 종료 정책은 제외
-- 실제 신청 가능한 정책만 포함
+    📌 [출력 규칙]
+    - 출력은 반드시 HTML 형식만 사용하고, <h2>는 포함하지 않습니다.
+    - `<h3>`는 2~3개 사용, 중복 없이 다른 표현으로.
+    - `<strong>`으로 핵심 키워드를 자연스럽게 강조하세요.
+    - `<ul>` 또는 `<table>` 중 최소 하나는 반드시 포함하세요.
+    - `<a>` 링크는 문장 안에 중첩 없이 사용하고, 반복 삽입하지 마세요.
 
-📌 [정보 정확도 및 SEO 지침]
-- 각 항목은 다음 중 최소 2개 이상 포함:
-    - 수치, 조건, 실제 사례, 운영 기관명
-    - <table> 또는 <ul> 태그 포함
-    - 명확하고 정확한 표현 사용
-- 중복 문단·중복 제목 생성 금지
-- 신청방법, 신청대상, 지원대상 등 조건이 있다면 최대한 목록과 테이블을 이용하여 시각적으로 유리하게 상세하게 작성
+    📌 [정보 구성 조건]
+    - 다음 중 3가지 이상 반드시 포함:
+        - 제도명, 기관명(실명), 연령/소득 조건 등 구체 수치
+        - 신청 방법 또는 실제 신청 링크
+        - 표 또는 목록 형식 정보
+        - 실제 사례나 통계 등 신뢰할 수 있는 근거
+    - 팩트 체크 반드시 필요 : 허위 정보 금지
 
-📌 [참조 문구 작성 규칙 — 매우 중요]
-- ❌ "자세한 정보는 xxx 공식 홈페이지를 참조하시기 바랍니다." 라는 식의 문구 절대 금지.
-- ✅ <p>참조: <a href="https://도메인" target="_blank" rel="noopener">기관명 공식 홈페이지</a>, <a href="https://도메인" target="_blank" rel="noopener">기관명 공식 홈페이지</a>.....</p>
-- 소제목 리스트 마지막 본문 내용 아래 맨 마지막 문단에 중복되지 않게 1회만 삽입하여 중복된 느낌이 들지 않도록
-  
-📌 [기관 정보 처리 지침]
-- 전화번호는 실제 존재하는 기관의 공식 대표번호만 사용 (허구 생성 금지)
-- 홈페이지 링크는 반드시 실제 존재하는 공식 URL만 사용, 존재하지 않는다면 링크사용 안해도 됨
-  
-  
-📌 [정보 탐색 및 작성 조건 — 매우 중요]
-- 작성하려는 주제에 대해 **정확한 정보가 존재한다면**, 웹 검색 또는 학습된 지식 기반으로 최대한 구체적으로 작성하세요.
-- 동일 주제 관련 제도, 제도명, 운영기관, 혜택 사례 등을 바탕으로 정보 **재구성** 가능
-- 허위 정보는 절대 금지, 정보가 확실히 없을 때만 ‘작성 불가’로 표시하지 말고 기존의 HTML 원문 내용을 그대로 재사용하세요.
-  
-        """
+    📌 [참조 링크 규칙]
+    - 본문 끝에 1회만 아래 형식으로 작성하세요:
+      <p>참조: <a href="https://기관도메인" target="_blank" rel="noopener">기관명</a></p>
+
+    📌 [최신성 기준]
+    - 오늘 날짜 기준({today})의 정보만 사용
+    - {this_year}년 이전 종료된 정책은 절대 포함하지 마세요.
+    
+    ❗❗ 절대 ` ```html ` 또는 ` ``` ` 같은 마크다운 코드 블럭을 사용하지 마세요.
+    
+    """
 
         try:
             response = client.chat.completions.create(
@@ -737,7 +799,8 @@ em { color: #444; font-style: normal; }
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3
+                temperature=0.3,
+                max_tokens=1500
             )
             rewritten_html = response.choices[0].message.content.strip()
         except Exception as e:
@@ -747,7 +810,7 @@ em { color: #444; font-style: normal; }
         new_body.append("\n" + str(h2))
         new_body.append("\n" + rewritten_html)
 
-    # ✅ 목차 추가
+        # ✅ 목차 추가
 
     system_message = (
         "당신은 정부 정책, 지원금, 제도 정보를 전문적으로 안내하는 공공기관 블로그 콘텐츠 작성 전문가입니다. "
@@ -789,28 +852,19 @@ em { color: #444; font-style: normal; }
         extra_parts.append(f"<p></p><br><p><strong>한줄요약:</strong> {cleaned_summary}</p>")
     if personal_opinion:
         cleaned_opinion = personal_opinion.replace("개인 의견:", "").strip()
-        extra_parts.append(f"<p><em style='color:#555; font-weight:bold; font-style: italic; '>{cleaned_opinion}</em></p>")
-
+        extra_parts.append(
+            f"<p><em style='color:#555; font-weight:bold; font-style: italic; '>{cleaned_opinion}</em></p>")
 
     # ✅ 메타 설명
     meta_description = f"{keyword}에 대한 실생활 정보 및 가이드입니다."
     meta_description_paragraph = f'<p style="color:#888;"><strong>📌 </strong> {meta_description}</p>'
 
-    # ✅ 태그 생성 (keyword 기준 + GPT 추출)
-    tag_prompt = f"다음 키워드 '{keyword}'를 중심으로 블로그 본문에서 사용할 태그를 5~8개 추출해줘. '#' 없이 쉼표로 구분하고, 중복 표현 없이 핵심어로 작성해줘."
-    try:
-        tag_response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": tag_prompt}],
-            temperature=0.3
-        )
-        tag_line = tag_response.choices[0].message.content.strip()
-        tag_html = f"<p style='color:#666;'>#태그: {tag_line}</p>"
-    except Exception as e:
-        tag_html = ""
+    # ✅ JSON-LD FAQ 생성 (GPT 활용)
+    # ✅ JSON-LD FAQ 생성
+    json_ld_block = generate_json_ld_faq_with_gpt(client, body_html, keyword)
 
-    # ✅ 본문 구성
-    full_body = "\n".join([style_tag, body_html] + extra_parts + [tag_html])
+    # ✅ 본문 최종 구성
+    full_body = "\n".join([style_tag, body_html] + ([json_ld_block] if json_ld_block else []) + extra_parts)
     # full_body = "\n".join([style_tag, toc_section_html] + new_body + extra_parts + [tag_html])
 
     # ✅ 메타 태그 삽입용 <meta> (SEO 목적)
@@ -829,12 +883,88 @@ em { color: #444; font-style: normal; }
     final_html = postprocess_html_for_blog(final_html, keyword)
 
     return final_html
+
+
+
+
+
 #############후처리
+def generate_json_ld_faq_with_gpt(client, full_html, keyword):
+    """
+    전체 HTML 콘텐츠를 바탕으로 GPT에게 JSON-LD FAQ 구조를 생성 요청
+    :param client: OpenAI 클라이언트
+    :param full_html: 최종 콘텐츠 HTML (style 포함)
+    :param keyword: 핵심 키워드 (title 및 질문 내용 참조)
+    :return: JSON-LD <script> 블록 문자열
+    """
+    system_message = (
+        "당신은 Google SEO 전문가이자 JSON-LD 마크업 구조화에 특화된 개발자입니다. "
+        "사용자의 블로그 HTML 콘텐츠를 바탕으로 FAQPage 스키마를 생성합니다. "
+        "질문은 <h2> 또는 중요한 문단 제목을 기반으로 하고, 답변은 해당 섹션 요약입니다. "
+        "출력은 JSON-LD 형식이며 <script type=\"application/ld+json\">...</script> 태그 전체만 출력하세요. "
+        "마크다운이나 다른 텍스트는 절대 포함하지 마세요. HTML 태그는 JSON 내부에 포함하지 마세요."
+        "FAQPage 스키마를 JSON-LD 형식으로 정확하게 출력하세요. "
+        "출력에는 절대 ```json 같은 마크다운 블럭을 사용하지 마세요. "
+        "오직 <script type=\"application/ld+json\">...</script> 로 감싼 JSON만 출력하세요."
+    )
+
+    prompt = f"""
+📌 [콘텐츠 키워드]
+- {keyword}
+
+📌 [HTML 본문]
+{full_html}
+
+📌 [FAQ 생성 조건]
+- 총 3~5개 질문-답변으로 구성하세요.
+- 질문은 사용자가 실제 검색할 법한 문장으로 바꾸고, 답변은 친절하고 요약된 설명으로 작성하세요.
+- HTML은 제거한 순수 텍스트 기반 질문·답변으로 구성합니다.
+- 출력 형식은 반드시 JSON-LD (FAQPage 스키마) 입니다.
+    """
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.2,
+            max_tokens=1200
+        )
+        json_ld_raw = response.choices[0].message.content
+        json_ld = clean_json_ld_output(json_ld_raw)
+        # json_ld = response.choices[0].message.content.strip()
+        if json_ld.startswith("<script"):
+            print("✅ 생성된 JSON-LD FAQ:\n", json_ld)  # 👈 이 위치에서 확인
+            return json_ld if json_ld.startswith("<script") else ""
+        else:
+            print("⚠️ JSON-LD 응답 형식 아님:\n", json_ld)
+            return ""
+    except Exception as e:
+        print(f"❌ JSON-LD GPT 생성 실패: {e}")
+        return ""
+
+def clean_json_ld_output(gpt_response: str) -> str:
+    import re
+    # 1. ```json 코드 블럭 제거
+    cleaned = re.sub(r"^```json", "", gpt_response.strip(), flags=re.IGNORECASE)
+    cleaned = re.sub(r"```$", "", cleaned.strip())
+
+    # 2. 불필요한 개행/띄어쓰기 정리
+    cleaned = re.sub(r"\s+\n", "\n", cleaned)
+    cleaned = re.sub(r"\n\s+", "\n", cleaned)
+
+    # 3. 줄바꿈된 단어 붙이기 (예: 수 있\n습니다 → 수 있습니다)
+    cleaned = re.sub(r"(\S)\s*\n\s*(\S)", r"\1 \2", cleaned)
+
+    return cleaned.strip()
+
 def postprocess_html_for_blog(html: str, keyword: str) -> str:
     html = remove_nested_a_tags(html)
     html = remove_whitespace_before_images(html)
     html = clean_ul_paragraphs(html)
-    html = boldify_keyword_once(html, keyword)
+    html = convert_markdown_bold_to_html(html)
     return html
 
 
@@ -860,8 +990,27 @@ def clean_ul_paragraphs(html: str) -> str:
     return str(soup)
 def boldify_keyword_once(html: str, keyword: str) -> str:
     import re
-    pattern = re.escape(keyword)
-    return re.sub(pattern, f"<strong>{keyword}</strong>", html, count=1)
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    # 텍스트가 있는 태그에서만 대체 (img, script 등은 무시)
+    count = 0
+    for tag in soup.find_all(text=True):
+        if count >= 1:
+            break
+        if keyword in tag and tag.parent.name not in ["script", "style", "img"]:
+            tag.replace_with(tag.replace(keyword, f"<strong>{keyword}</strong>", 1))
+            count += 1
+
+    return str(soup)
+
+
+
+def convert_markdown_bold_to_html(html_text: str) -> str:
+    import re
+    # **text** → <strong>text</strong>
+    return re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", html_text)
 
 
 #########################
@@ -933,12 +1082,12 @@ def is_similar_topic(new_topic, existing_titles, client):
 #     return titles
 
 
-# ✅ 최신 글 50개 제목 가져오기 함수
+# ✅ 최신 글 20개 제목 가져오기 함수
 
 def load_existing_titles():
     import requests
 
-    url = f"{v_.domain_adress}/wp-json/wp/v2/posts?per_page=50&page=1&orderby=date&order=desc"
+    url = f"{v_.domain_adress}/wp-json/wp/v2/posts?per_page=20&page=1&orderby=date&order=desc"
     resp = requests.get(url)
 
     if resp.status_code != 200:
@@ -953,6 +1102,8 @@ def load_existing_titles():
 
 def suggest_life_tip_topic():
     from openai import OpenAI
+    import json
+
     import variable as v_
 
     from datetime import datetime
@@ -1010,8 +1161,10 @@ def suggest_life_tip_topic():
         - {today}, 현재 계절: {current_season}
 
         🧭 [주제 선정 조건]
-        - 위 목록과 **겹치지 않는 새로운 주제** 하나만 추천
+        - 최대한 위 목록 {result_titles} 들과 **겹치지 않는 새로운 주제** 10개만 리스트로 추천
+        - [] 배열에 담아서 반복문으로 출력 가능하도록.
         - 검색 수요가 높고, 사람들이 궁금해할만한 실용 정보 위주로 제시
+        - 제목 내용이 의미상 유사한 경우도 중복으로 간주하여 배제
         {v_.my_topic_user}
 
         ✅ [SEO 및 콘텐츠 기준]
@@ -1020,12 +1173,14 @@ def suggest_life_tip_topic():
            - (예: '여름철 건강관리' ❌ → '폭염 속 전기요금 할인제도 신청방법' ✅)
         3. 계절감은 **내용에 반영**하되, 제목에 반복적으로 계절명 표기하지 않음
         4. 정책·지원금 관련 정보는 **{today} 기준 최근 60일 이내 발표된 내용만 포함**
+            - 단, **{today}년 기준으로 신청기간 지난 정책·제도·지원금은 제외*
         5. 출력은 **한 줄 주제 제목**만. **이모지·특수문자 없이** 명확하게 작성
+        6. 출력은 반드시 다음 형식처럼 JSON 배열로 해줘:
+        ["주제1", "주제2", "주제3", "주제4", "주제5"]
 
-        📌 [예시 형식]
-        - "태풍 피해 복구 지원금 신청 방법"
-        - "전기요금 복지할인 조건 총정리"
-        - "청년전세보증금 반환보증 신청 절차"
+        📌 [출력 예시]
+        ["태풍 피해 복구 지원금 신청 방법", "전기요금 복지할인 조건 총정리", "청년전세보증금 반환보증 신청 절차"]
+
         """
 
         # 4. GPT 호출
@@ -1038,33 +1193,61 @@ def suggest_life_tip_topic():
             temperature=0.5
         )
 
+        try:
 
-        keyword = response.choices[0].message.content.strip()
+            raw_gpt_response = response.choices[0].message.content.strip()
+            result_suggest = parse_topic_list(raw_gpt_response)
+            assert isinstance(result_suggest, list)
 
-        print(f"🆕 추천된 주제: {keyword}")
+            # 기존 제목 가져오기
+            existing_titles = load_existing_titles()
 
-        # 기존 제목 가져오기
-        existing_titles = load_existing_titles()
+            print("🆕 추천 키워드들:", result_suggest)
 
-        # 중복 주제 여부 판단
-        score = is_similar_topic(keyword, existing_titles, client)
-
-        if score >= 90:
-            print(f"⚠️ 유사 주제 가능성 높음 (유사도: {score}%)")
-
+            for kw in result_suggest:
+                print("🆕 추천 키워드:", kw)
 
 
-        else:
-            print("✅ OpenAI 상태 정상. 콘텐츠 작성 시작.")
-            life_tips_keyword(keyword)
 
-            print("keyword")
+                # 중복 주제 여부 판단
+                score = is_similar_topic(kw, existing_titles, client)
 
-            suggest__ = True
+                if score >= 70:
+                    print(f"⚠️ 유사 주제 가능성 높음 (유사도: {score}%)")
+
+
+
+                else:
+                    print(f"✅ OpenAI 상태 정상. 콘텐츠 작성 시작. (유사도: {score}%)")
+                    life_tips_keyword(kw)
+
+                    print("keyword")
+
+                    suggest__ = True
+
+                    break
+        except Exception as e:
+            print("❌ JSON 파싱 실패:", e)
+            print("GPT 응답 내용:", response.choices[0].message.content)
+            return
+
 
     return suggest__
 
 
+
+def parse_topic_list(raw_text):
+    import json
+    import re
+
+    # 마크다운 코드블록 제거: ```json ... ``` or ```plaintext ... ``` 등 제거
+    cleaned = re.sub(r"^```(?:json|plaintext)?\s*|\s*```$", "", raw_text.strip(), flags=re.MULTILINE)
+
+    try:
+        return json.loads(cleaned)
+    except Exception as e:
+        print("❌ JSON 파싱 실패:", e)
+        return None
 
 def suggest_life_tip_topic_issue(keyword):
     from openai import OpenAI

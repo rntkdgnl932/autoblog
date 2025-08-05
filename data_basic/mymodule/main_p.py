@@ -2472,14 +2472,14 @@ class game_Playing(QThread):
 
                 else:
                     # QTest.qWait(600000)
-                    total_minutes = 5
+                    total_minutes = 1
                     for i in range(1, total_minutes + 1):
                         QTest.qWait(60 * 1000)  # 1분 = 60,000ms
                         passed = i
                         remaining = total_minutes - i
                         print(f"⏱️ {passed}분 지남 | ⏳ 남은 시간: {remaining}분")
 
-                    print("✅ 5분 대기 완료!")
+                    print("✅ 1분 대기 완료!")
 
 
 
