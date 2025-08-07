@@ -2452,11 +2452,11 @@ class game_Playing(QThread):
 
                     # QTest.qWait(18000000)
 
-                    total_minutes = 480  # 총 8시간 = 480분
+                    total_minutes = 420  # 총 7시간 = 420분
                     interval_minutes = 5
                     interval_ms = interval_minutes * 60 * 1000  # 5분 = 300,000ms
 
-                    print("⏳ 대기 시작: 총 8시간 (480분)\n")
+                    print("⏳ 대기 시작: 총 7시간 (420분)\n")
 
                     for i in range(1, (total_minutes // interval_minutes) + 1):
                         QTest.qWait(interval_ms)
@@ -2470,7 +2470,7 @@ class game_Playing(QThread):
                         else:
                             print(f"⌛ {elapsed_minutes}분 경과 / ⏱️ 남은 시간: {remaining_minutes}분")
 
-                    print("\n✅ 대기 완료: 총 8시간(480분) 경과!")
+                    print("\n✅ 대기 완료: 총 7시간(420분) 경과!")
 
 
                 else:

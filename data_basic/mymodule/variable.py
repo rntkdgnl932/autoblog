@@ -18,6 +18,7 @@ my_google_custom_api = "none"
 my_topic_system = "none"
 my_topic_user = "none"
 my_gas_key = "none"
+call_back_gemini = False
 
 # 게임 및 폴더 관련
 this_game = "auto_blog"
