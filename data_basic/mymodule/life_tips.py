@@ -67,6 +67,8 @@ wp = Client(f"{v_.domain_adress}/xmlrpc.php", v_.wd_id, v_.wd_pw)
 CATEGORY = v_.my_category
 
 
+#$ 요약
+
 def summarize_for_description(client, content, title=None, keyword=None):
     # 타이틀 제거 (본문에 포함되어 있을 수 있음)
     if title and title in content:
@@ -117,6 +119,7 @@ def summarize_for_description(client, content, title=None, keyword=None):
         print("❌ 요약 실패:", e)
         return content.strip()[:100]
 
+#$ 사진 생성
 
 def stable_diffusion(client, article, filename, description, slug):
     try:
@@ -197,7 +200,7 @@ def stable_diffusion(client, article, filename, description, slug):
         return None
 
 
-
+#$ ai 남은 량 체크
 
 def check_openai_ready():
 
@@ -221,6 +224,8 @@ def check_openai_ready():
 
     except Exception as e:
         print(f"❗ 기타 오류 발생: {e}")
+
+#$ 주제 선정
 
 def life_tips_keyword(keyword):
     from openai import OpenAI
@@ -279,6 +284,8 @@ def life_tips_keyword(keyword):
     article = response.choices[0].message.content.strip().replace("```html", "").replace("```", "")
     life_tips_start(article, keyword)
 
+
+#$ 요약
 
 def life_tips_start(article, keyword):
     from bs4 import BeautifulSoup
@@ -342,11 +349,12 @@ def life_tips_start(article, keyword):
     - <h3> 제목은 동일한 단어 반복을 피하고, 문맥에 맞는 다양한 표현으로 작성할 것
 
     [소제목 구성 예시]  
-    - 정보형: OO이란? 어떤 기준이 있을까  
-    - 절차형: 어떻게 신청하고 준비해야 할까  
-    - 조건형: 누가 받을 수 있나?  
-    - 활용형: 어떤 상황에서 유리하게 적용되는가  
-    - 주의사항형: 이런 경우엔 불이익이 발생할 수 있음  
+    - 아래는 예시이며, 실제 콘텐츠 내용에 맞게 유연하게 적용할 것  
+    - 정보형: OO이란 무엇이며 어떤 기준이 있는가?  
+    - 절차형: 어떻게 신청하고 어떤 준비가 필요한가?  
+    - 조건형: 어떤 사람이 대상이며 자격 조건은 무엇인가?  
+    - 활용형: 어떤 상황에서 가장 유리하게 활용할 수 있는가?  
+    - 주의사항형: 어떤 실수나 조건에서 불이익이 발생할 수 있는가?
 
     [마무리 구성]  
     - 각 소제목 끝에 핵심 요점 정리 `<ul>` 삽입하거나 테이블로 가능한 경우는 테이블로 정리하기
@@ -501,10 +509,10 @@ def life_tips_start(article, keyword):
                                                                                                           "").strip()
     personal_opinion = opinion_html.replace("<p>", "").replace("</p>", "").replace("<em>", "").replace("</em>",
                                                                                                        "").strip()
-
-    print("body_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_html")
-    print(body_html)
-    print("body_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_html")
+    #
+    # print("body_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_html")
+    # print(body_html)
+    # print("body_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_htmlbody_html")
 
     # ✅ GPT로 본문 구성 후
     gpt_generated_html = optimize_html_for_seo_with_gpt(
@@ -515,10 +523,10 @@ def life_tips_start(article, keyword):
         personal_opinion=personal_opinion,
         this_title=title
     )
-
-    print("gpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_html")
-    print(gpt_generated_html)
-    print("gpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_html")
+    #
+    # print("gpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_html")
+    # print(gpt_generated_html)
+    # print("gpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_htmlgpt_generated_html")
 
     # ✅ 기관명 추출 후 검색 및 저장
     for org_name in my_organization_list(gpt_generated_html):
@@ -554,6 +562,7 @@ def life_tips_start(article, keyword):
         wp.call(NewPost(post))
         print(f"✅ 게시 완료: {title}")
 
+#$ 태그 추출
 
 def extract_tags_from_html_with_gpt(client, html_content, keyword):
     prompt = f"""
@@ -665,6 +674,7 @@ def optimize_html_for_seo(html_content, keyword):
 
     return str(soup)
 
+#$ 내용 상세하게
 
 def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summary="", personal_opinion="", this_title=""):
     from bs4 import BeautifulSoup
@@ -723,12 +733,12 @@ def optimize_html_for_seo_with_gpt(client, html_content, keyword, one_line_summa
 
     # ✅ 스타일 태그 삽입
     style_tag = """
-<style>
-h2 { margin-top: 40px; color: #0077cc; font-weight: bold; }
-h3 { margin-top: 25px; color: #333; font-weight: bold; }
-ul, table { margin: 10px 0; padding: 0 10px; }
-em { color: #444; font-style: normal; }
-</style>
+    <style>
+    h2 { margin-top: 40px; color: #0077cc; font-weight: bold; }
+    h3 { margin-top: 25px; color: #333; font-weight: bold; }
+    ul, table { margin: 10px 0; padding: 0 10px; }
+    em { color: #444; font-style: normal; }
+    </style>
     """.strip()
 
     # ✅ GPT로 소제목별 본문 생성 (중복 방지 + 문맥 기반 생성 방식)
@@ -747,49 +757,73 @@ em { color: #444; font-style: normal; }
 
         system_message = (
             f"당신은 '{v_.my_topic}' 주제에 특화된 전문 블로그 기획자입니다. "
-            "절대 허위 정보를 생성하지 않으며, 전화번호나 웹사이트 주소는 존재하는 공식 정보만 사용합니다. "
-            "AI 스타일의 흔적을 남기지 않고, 자연스럽고 신뢰감 있는 공공 콘텐츠를 생성합니다."
-            "팩트 체크를 꼼꼼히 하는 누구나 신뢰하는 전문가입니다. "
+            "절대 허위 정보를 생성하지 않으며, 전화번호, 정책명, 웹사이트 주소는 반드시 실존하는 공식 정보만 사용합니다. "
+            "내용은 자연스럽고 신뢰감 있게 구성하며, AI 스타일의 흔적 없이 공공기관 공식 자료를 바탕으로 작성합니다. "
+            "팩트 체크에 철저하며, 최신 제도 기준으로만 작성합니다."
         )
 
-        # 소제목 리스트를 GPT에게 함께 전달해, 현재 소제목만 작성하되 중복 방지
-        other_titles = [t for j, t in enumerate(h2_list) if j != i][:9]  # 최대 9개
+        # 소제목 따로 분리해서 전체내용을 알수 있도록
+        other_titles = [t for j, t in enumerate(h2_list) if j != i][:9]
         other_titles_text = "\n".join([f"- {t}" for t in other_titles])
 
         prompt = f"""
-    📌 [작성 목적]
-    - '{keyword}' 주제의 블로그 콘텐츠에서, 다음 소제목 항목을 작성합니다: <strong>{h2_text}</strong>
+        📌 [작성 목적]
+        당신은 전문 블로그 콘텐츠 기획자로서, '{keyword}' 주제의 블로그 글 중 다음 소제목에 해당하는 **세부 본문**을 작성해야 합니다:
+        → <strong>{h2_text}</strong>
 
-    📌 [주의 사항]
-    - 아래 소제목들과 내용이 **절대 중복되지 않도록** 구별된 내용을 구성하세요:
-    {other_titles_text}
+        📌 [중복 방지 조건]
+        다음 소제목들과 **내용이 겹치지 않도록 완전히 다른 정보로 작성**하세요:
+        {other_titles_text}
 
-    📌 [출력 규칙]
-    - 출력은 반드시 HTML 형식만 사용하고, <h2>는 포함하지 않습니다.
-    - `<h3>`는 2~3개 사용, 중복 없이 다른 표현으로.
-    - `<strong>`으로 핵심 키워드를 자연스럽게 강조하세요.
-    - `<ul>` 또는 `<table>` 중 최소 하나는 반드시 포함하세요.
-    - `<a>` 링크는 문장 안에 중첩 없이 사용하고, 반복 삽입하지 마세요.
+        📌 [팩트 체크 및 정확성 유지]
+        - 작성 전 반드시 실제로 시행 중인 정책, 제도, 기관 기준으로 **사실 확인**을 완료해야 합니다.
+        - **웹검색 기반으로 실제 공공기관, 정부 사이트, 공식 보도자료를 바탕으로만 정보 작성**하세요.
+        - 다음 항목에 대해 **허위/추측 없이 실제 존재하는 정보만 포함**하세요:
+          1. 제도명, 기관명, 부서명, 전화번호, 웹사이트 주소
+          2. 정책 시행일, 종료일, 신청 가능 시기
+          3. 소득/연령 기준, 면적/가격 요건
+          4. 신청 절차, 준비 서류, 유의사항
+          5. 시행 기관의 실제 신청 페이지나 안내 링크
 
-    📌 [정보 구성 조건]
-    - 다음 중 3가지 이상 반드시 포함:
-        - 제도명, 기관명(실명), 연령/소득 조건 등 구체 수치
-        - 신청 방법 또는 실제 신청 링크
-        - 표 또는 목록 형식 정보
-        - 실제 사례나 통계 등 신뢰할 수 있는 근거
-    - 팩트 체크 반드시 필요 : 허위 정보 금지
+        📌 [출력 형식 - HTML]
+        - 전체 출력은 반드시 순수 HTML 형식으로 작성하세요. **마크다운(예: ```html) 금지**
+        - `<h2>` 태그는 사용하지 마세요.
+        - **<h3> 소제목을 2~3개** 포함하고, 각 문단은 **서로 다른 의미를 담도록 분리**하세요.
+        - 본문 중간에 최소 1개 이상의 **<ul> 또는 <table>** 포함 필수.
+        - 핵심 키워드는 **자연스럽게 <strong>으로 강조**하세요.
+        - **<a href="...">링크는 중복 없이 1회만 삽입**, 공공기관의 실제 주소만 사용하세요.
 
-    📌 [참조 링크 규칙]
-    - 본문 끝에 1회만 아래 형식으로 작성하세요:
-      <p>참조: <a href="https://기관도메인" target="_blank" rel="noopener">기관명</a></p>
+        📌 [정보 구성 필수 조건]
+        다음 중 **최소 3가지 이상**을 포함하여 구성하세요:
+        - 법률/공식문서에서 확인 가능한 제도·정책 이름
+        - 시행 기관명 또는 담당 부서 명시
+        - 연령/소득/면적 조건 등 상세 요건
+        - 신청 절차 및 방법(어디서, 어떻게, 언제 신청 가능한지)
+        - 표나 목록 형식으로 정리된 항목
+        - 실제 통계자료나 사례, 공공기관 보도자료 기반 근거
 
-    📌 [최신성 기준]
-    - 오늘 날짜 기준({today})의 정보만 사용
-    - {this_year}년 이전 종료된 정책은 절대 포함하지 마세요.
-    
-    ❗❗ 절대 ` ```html ` 또는 ` ``` ` 같은 마크다운 코드 블럭을 사용하지 마세요.
-    
-    """
+        📌 [참조 링크]
+        - 본문 마지막에 다음 형식으로 **1회만 삽입**하세요:
+          <p>참조: <a href="https://기관도메인" target="_blank" rel="noopener">기관명</a></p>
+
+        📌 [최신 정보 기준]
+        - 오늘 날짜 기준({today}), **{this_year}년 이후에 시행 중인 제도 또는 공식 공표된 정책만** 포함하세요.
+        - **과거 종료된 제도, 입법예고, 제안 중인 제도는 절대 포함하지 마세요.**
+
+        📌 [문체 및 SEO 스타일 가이드]
+        - 문장은 **공식 블로그처럼 신뢰감 있고 자연스럽게** 작성하세요.
+        - **GPT 또는 AI 스타일의 반복 어투, 과장된 마무리 표현 등은 절대 금지**입니다.
+        - 문장마다 **핵심 키워드를 SEO를 고려하여 자연스럽게 포함**하세요.
+        - 단락 간 **논리적 연결과 문단 흐름**을 신경 써서 매끄럽게 구성하세요.
+
+        ❗ 절대 금지 사항
+        - 허구의 전화번호, URL, 기관명
+        - AI 스타일 마무리 문구 (“도움이 되었길 바랍니다” 등)
+        - `<h2>` 사용, 마크다운 코드블럭( ``` ) 사용
+        
+        ❗❗ 다시 강조: 출력은 순수 HTML 콘텐츠만 작성하며, 마크다운 코드블록( ```)은 절대 사용하지 마세요.
+
+        """
 
         try:
             response = client.chat.completions.create(
@@ -802,6 +836,7 @@ em { color: #444; font-style: normal; }
                 max_tokens=1500
             )
             rewritten_html = response.choices[0].message.content.strip()
+            rewritten_html = strip_markdown_code_block(rewritten_html)
         except Exception as e:
             print(f"❌ GPT 재구성 실패 - {h2_text}: {e}")
             rewritten_html = f"<p>{h2_text} 관련 내용을 준비하지 못했습니다.</p>"
@@ -890,6 +925,12 @@ em { color: #444; font-style: normal; }
 
 
 #############후처리
+
+def strip_markdown_code_block(text: str) -> str:
+    # ```html 또는 ``` 제거
+    import re
+    return re.sub(r"```html\s*|```", "", text).strip()
+
 def generate_json_ld_faq_with_gpt(client, full_html, keyword):
     """
     전체 HTML 콘텐츠를 바탕으로 GPT에게 JSON-LD FAQ 구조를 생성 요청
@@ -1098,8 +1139,10 @@ def load_existing_titles():
     data = resp.json()
     titles = [post['title']['rendered'] for post in data]
 
-    print(f"📌 최신 글 {len(titles)}개의 제목을 가져왔습니다.")
+    print(f"📌 최신 글 {len(titles)}개의 제목을 가져왔습니다. gpt")
     return titles
+
+#$ 제목 정하기
 
 def suggest_life_tip_topic():
     from openai import OpenAI

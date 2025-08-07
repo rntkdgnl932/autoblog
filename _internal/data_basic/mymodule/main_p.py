@@ -142,7 +142,7 @@ class MyApp(QDialog):
         # git config --global --add safe.directory C:/my_games/mbng
         # auto_blog
         # data_basic
-        # pyinstaller --hidden-import PyQt5 --hidden-import pyserial --hidden-import OpenAI --hidden-import feedparser --hidden-import requests --hidden-import chardet --add-data="C:\\my_games\\auto_blog\\data_basic;./data_basic" --add-data="C:\\my_games\\auto_blog\\mysettings;./mysettings" --name auto_blog -i="auto_blog.ico" --add-data="auto_blog.ico;./" --icon="auto_blog.ico" --paths "C:\my_games\auto_blog\.venv\Scripts\python.exe" main.py
+        # pyinstaller --hidden-import PyQt5 --hidden-import pyserial --hidden-import OpenAI --hidden-import feedparser --hidden-import requests --hidden-import chardet --hidden-import google.generativeai --add-data="C:\\my_games\\auto_blog\\data_basic;./data_basic" --add-data="C:\\my_games\\auto_blog\\mysettings;./mysettings" --name auto_blog -i="auto_blog.ico" --add-data="auto_blog.ico;./" --icon="auto_blog.ico" --paths "C:\my_games\auto_blog\.venv\Scripts\python.exe" main.py
         # 업데이트버젼
         # pyinstaller --hidden-import PyQt5 --hidden-import pyserial --hidden-import requests --hidden-import chardet --add-data="C:\\my_games\\game_folder\\data_game;./data_game" --name game_folder -i="game_folder_macro.ico" --add-data="game_folder_macro.ico;./" --icon="game_folder_macro.ico" --paths "C:\Users\1_S_3\AppData\Local\Programs\Python\Python311\Lib\site-packages\cv2" main.py
 
@@ -386,6 +386,8 @@ class SecondTab(QWidget):
         file_path_google_custom = dir_path + "\\mysettings\\idpw\\onecla_google_custom.txt"
         file_path_topic_system = dir_path + "\\mysettings\\idpw\\topic_system.txt"
         file_path_topic_user = dir_path + "\\mysettings\\idpw\\topic_user.txt"
+        file_path_gas_key = dir_path + "\\mysettings\\idpw\\gas_key.txt"
+
 
         for i in range(4):
             if os.path.isfile(file_path_one) == True:
@@ -489,6 +491,19 @@ class SecondTab(QWidget):
           - 부동산 정책, 금융 혜택, 세금 감면, 정부 지원금, 생활 신청제도, 에너지 절약, 소비자 혜택
 """
                     )
+
+        for i in range(3):
+            if os.path.isfile(file_path_gas_key) == True:
+                # 파일 읽기
+                with open(file_path_gas_key, "r", encoding='utf-8-sig') as file:
+                    read_my_gas_key = file.read()
+                    v_.my_gas_key = read_my_gas_key
+                    break
+
+
+            else:
+                with open(file_path_gas_key, "w", encoding='utf-8-sig') as file:
+                    file.write("none")
 
         if os.path.isfile(file_path_two) == True:
             # 파일 읽기
@@ -2399,6 +2414,7 @@ class game_Playing(QThread):
         import random
         from life_tips import life_tips_keyword
         from trend_search_page import collect_all_topics, filter_topics_by_category
+        from gas_start import check_gemini_ready
 
         try:
             print("game_Playing")
@@ -2420,18 +2436,33 @@ class game_Playing(QThread):
 
                 if random_topic == 1:
 
-                    result_suggest = suggest_life_tip_topic()
+                    if check_gemini_ready():
+                        print("✅ Gemini API 상태 정상. 자동 포스팅을 시작합니다.")
+                        result_suggest = suggest_life_tip_topic()
+                    else:
+                        print("❌ Gemini API 상태를 확인할 수 없어 스크립트를 종료합니다.")
+
+
                     print("result_suggest", result_suggest)
 
                 else:
+
+
                     topic_list = collect_all_topics()
 
                     filtered_topics = filter_topics_by_category(topic_list)
 
                     print("\n🔷 최종 필터링된 블로그 키워드:", filtered_topics)
                     if len(filtered_topics) > 0:
-                        result_suggest = True
-                        life_tips_keyword(filtered_topics)
+
+                        for i in range(len(filtered_topics)):
+
+                            result_suggest = suggest_life_tip_topic_issue(filtered_topics[i])
+                            print("result_suggest", result_suggest)
+
+                            if result_suggest == True:
+                                break
+                            QTest.qWait(100)
                     else:
                         print("없..................")
 
@@ -2439,12 +2470,11 @@ class game_Playing(QThread):
 
                     # QTest.qWait(18000000)
 
-
-                    total_minutes = 300  # 총 5시간 = 300분
+                    total_minutes = 480  # 총 8시간 = 480분
                     interval_minutes = 5
                     interval_ms = interval_minutes * 60 * 1000  # 5분 = 300,000ms
 
-                    print("⏳ 대기 시작: 총 5시간 (300분)\n")
+                    print("⏳ 대기 시작: 총 8시간 (480분)\n")
 
                     for i in range(1, (total_minutes // interval_minutes) + 1):
                         QTest.qWait(interval_ms)
@@ -2458,18 +2488,19 @@ class game_Playing(QThread):
                         else:
                             print(f"⌛ {elapsed_minutes}분 경과 / ⏱️ 남은 시간: {remaining_minutes}분")
 
-                    print("\n✅ 대기 완료: 총 5시간(300분) 경과!")
+                    print("\n✅ 대기 완료: 총 8시간(480분) 경과!")
+
 
                 else:
                     # QTest.qWait(600000)
-                    total_minutes = 5
+                    total_minutes = 1
                     for i in range(1, total_minutes + 1):
                         QTest.qWait(60 * 1000)  # 1분 = 60,000ms
                         passed = i
                         remaining = total_minutes - i
                         print(f"⏱️ {passed}분 지남 | ⏳ 남은 시간: {remaining}분")
 
-                    print("✅ 5분 대기 완료!")
+                    print("✅ 1분 대기 완료!")
 
 
 
