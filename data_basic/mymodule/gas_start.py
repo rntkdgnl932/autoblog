@@ -192,14 +192,18 @@ def stable_diffusion(article, filename, description, slug):
             image_bytes = base64.b64decode(b64_image)
 
             img = Image.open(BytesIO(image_bytes)).convert("RGB")
+            # ✅ [핵심 수정] 저장 포맷을 JPEG에서 WEBP로 변경
             buf = BytesIO()
-            img.save(buf, format="JPEG", quality=75)
+            # quality: 80~90 사이가 품질과 용량 면에서 균형이 좋습니다.
+            img.save(buf, format="WEBP", quality=90)
             image = BytesIO(buf.getvalue())
-            image.name = f"{slug}_{filename}.jpg"
+
+            # ✅ 파일 이름 확장자도 .webp로 변경
+            image.name = f"{slug}_{filename}.webp"
             image.seek(0)
 
             media = {
-                'name': image.name, 'type': 'image/jpeg', 'caption': short_prompt,
+                'name': image.name, 'type': 'image/webp', 'caption': short_prompt,
                 'description': description, 'bits': xmlrpc_client.Binary(image.read())
             }
             return media
@@ -231,40 +235,27 @@ def check_gemini_ready():
 
 # $ 주제 선정 및 초안 생성
 def life_tips_keyword(keyword):
+    """초안 생성 후 life_tips_start를 호출하고 그 결과를 반환"""
     print(f"▶ 키워드 '{keyword}'로 본문 초안 생성 요청")
-    today = datetime.today().strftime("%Y년 %m월 %d일")
-    this_year = datetime.today().year
-
     prompt = f"""
     [역할]
-    당신은 '{v_.my_topic}' 주제에 특화된 전문 블로그 기획자입니다. 실제로 조사해 요약하는 방식으로, 정확하고 감성적인 콘텐츠를 작성해야 합니다. 특히 독자가 실질적으로 도움을 받을 수 있도록 유효한 최신 정보만 반영해야 합니다.
-
+    당신은 '{getattr(v_, 'my_topic', '생활 정보')}' 분야의 전문 작가이자 사실 확인 전문가입니다. 당신의 임무는 독자들이 신뢰할 수 있는 정확하고 깊이 있는 정보로 구성된 블로그 초안을 작성하는 것입니다.
     [지시]
-    아래 조건에 맞춰 '{keyword}' 주제로 블로그 본문 초안을 작성해주세요.
-
-    [정보 최신성 기준]
-    - 이 콘텐츠는 **{today} 기준으로 최신 정보만 포함**되어야 합니다.
-    - **{this_year}년 이전에 발표된 정책·제도·지원금은 제외**하고, **현재 신청 가능한 정보**만 반영해야 합니다.
-
-    [작성 조건]
-    - 분량: 약 1000~1200자
-    - 문체: 친근하고 감성적인 말투이되, **정보성 중심**
-    - 포맷: HTML 태그 없이 일반 텍스트로 구성 (단락 구분은 줄바꿈)
-
-    [금지 사항]
-    - 이미 종료된 정책 또는 신청 불가능한 정보 포함
-    - 추정 정보, 존재하지 않는 기관·사이트·전화번호 작성
+    '{keyword}'라는 주제에 대해, 아래 규칙을 모두 준수하여 블로그 포스팅을 위한 상세한 '초안'을 작성해주세요.
+    [작성 규칙]
+    1. **정보의 정확성:** 모든 정보는 2025년 현재 유효한 것이어야 합니다. 기관명, 정책명, 통계 수치는 실제 존재하는 공식적인 정보를 기반으로 작성하세요.
+    2. **내용의 구체성:** 추상적인 설명 대신, 독자들이 바로 활용할 수 있는 구체적인 조건, 수치, 방법, 예시를 풍부하게 포함해주세요.
+    3. **구조적 글쓰기:** 서론-본론-결론의 구조를 갖추고, 본론은 3~4개의 명확한 소주제로 나누어 각 소주제별로 내용을 상세히 서술해주세요.
+    4. **출력 형식:** **가장 중요합니다. 절대 HTML 태그를 사용하지 말고, 오직 '일반 텍스트'로만** 작성해주세요.
     """
-
     article_result = call_gemini(prompt, temperature=0.7)
 
-    # ✅ call_gemini의 반환값을 체크하여 다음 단계 진행 여부 결정
     if article_result in ["SAFETY_BLOCKED", "API_ERROR"] or not article_result:
         print(f"❌ 초안 생성 실패({article_result}). 다음 키워드로 넘어갑니다.")
-        return False  # 🔴 초안 생성 실패 시 False 반환
+        return False
 
-    # ✅ 성공 시, 원본(article_result)을 그대로 전달하며 life_tips_start 호출
-    return life_tips_start(article_result, keyword)
+    # life_tips_start가 True 또는 False를 반환하면, 그 값을 그대로 상위 루프에 전달
+    return life_tips_start(article_result.replace("```html", "").replace("```", "").strip(), keyword)
 
 #$ 제목 설정하기
 
@@ -287,7 +278,7 @@ def generate_impactful_titles(keyword, article_summary):
     - 예시 : 실제 방법은 3가지인데, 소제목이 5개라서 5가지로 하면 안됨.
     2.  **호기심 자극:** '숨겨진', '...하는 유일한 방법', '모르면 손해' 등 궁금증을 유발하라.
     3.  **이득 강조:** 'OO만원 절약', '시간 단축' 등 독자가 얻을 명확한 혜택을 제시하라.
-    4.  **강력한 단어:** '총정리', 'A to Z', '필수', '비법' 등 단어를 사용하여 전문성을 어필하라.
+    4.  **강력한 단어:** '총정리', '필수', '비법' 등 임팩트 있는 단어를 사용하여 전문성을 어필하라.
     5.  **질문 형식:** 독자에게 직접 말을 거는 듯한 질문으로 참여를 유도하라.
 
     [핵심 키워드]
@@ -341,26 +332,48 @@ def generate_main_body_html(article, keyword):
 # ✨ [신규] 분업화된 콘텐츠 '데이터' 생성 함수들
 # ==============================================================================
 def generate_structured_content_json(article, keyword):
-    """(분업 1) Gemini에게 'HTML이 아닌' 구조화된 'JSON 데이터'를 생성하도록 요청"""
-    print("  ▶ (분업 1) Gemini로 본문 JSON 데이터 생성 중...")
+    """(AI 역할) 초안을 받아 '비교분석', '경험' 등을 추가하여 전문가 수준의 'JSON 데이터'로 재구성"""
+    print("▶ (AI 작업 2/6) 본문 JSON 데이터 생성 중...")
+    #      {getattr(v_, 'my_topic', '생활 정보')}
     prompt = f"""
-    [역할] 당신은 블로그 콘텐츠 구조화 전문가입니다.
-    [지시] 주어진 '초안'을 분석하여, 아래 'JSON 출력 구조'에 맞춰 콘텐츠를 재구성해주세요.
+    [역할]
+    당신은 '{v_.my_topic}' 분야의 15년차 전문 블로거이자 SEO 콘텐츠 전략가입니다. 당신의 임무는 주어진 '초안'을 독자에게 독보적인 가치를 제공하는 전문가 콘텐츠로 재탄생시키는 것입니다.
+    또한, 특정 주제에 대해 매우 깊이 있는 지식을 가진 전문 작가이자, E-E-A-T(경험, 전문성, 권위, 신뢰성)를 고려하여 SEO 콘텐츠를 작성하는 전략가입니다.
+
+    
+    [지시]
+    '{keyword}'를 주제로 한 아래 '초안'을 바탕으로, 다음 [필수 포함 요소]를 모두 반영하여 'JSON 출력 구조'에 맞춰 콘텐츠를 재구성해주세요.
+
+    [필수 포함 요소]
+    1.  **독창적 분석:** 주제와 관련된 여러 방법이나 옵션이 있다면, 장단점을 비교하는 '유형별 비교 분석' 표(Table)를 반드시 포함하세요.
+    2.  **개인 경험(E-E-A-T):** 본문 내용과 관련된 당신의 짧은 경험담이나 실제 사례를 1인칭 시점("제가 직접 해보니...")으로 자연스럽게 녹여내세요.
+    3.  **전문가 팁 & 주의사항:** 독자들이 놓치기 쉬운 '전문가의 꿀팁'이나 '주의사항' 섹션을 구체적으로 추가하여 신뢰도(T)를 높이세요.
+    4.  **구조화:** 전체 내용은 서론, 3~4개의 소주제, 결론으로 명확하게 구분해주세요.
+
+    [콘텐츠 생성 원칙]
+    1.  **소제목(title) 작성:** 독자가 검색할 만한 핵심 키워드를 중심으로, 간결하고 명확하게 작성하세요.
+    2.  **서론 강화:** 독자의 흥미를 유발하는 도입부와 함께, 이 글을 통해 무엇을 얻을 수 있는지 알려주는 핵심 요약 목록(bullet points)을 서론 내용에 포함해주세요.
+    3.  **독창적 분석(content):** 단순 정보 나열을 피하세요.
+        - 만약 주제에 여러 선택지나 유형이 있다면, **장단점을 비교하는 '비교 분석표'**를 포함하세요.
+        - 만약 주제가 어떤 절차나 방법을 설명한다면, **구체적인 '단계별 가이드'**를 제시하세요.
+        - 만약 주제가 특정 정책이나 사건이라면, 그 **'배경과 영향'**을 깊이 있게 설명하세요.
+    4.  **신뢰도 향상(E-E-A-T):** 본문 내용 중 한 곳에, 주제와 관련된 당신의 짧은 **1인칭 경험담("제가 직접 해보니...")**을 자연스럽게 삽입하세요. 또한, 독자들이 놓치기 쉬운 **'전문가의 팁' 또는 '주의사항'**을 구체적으로 추가하세요.
+
 
     [JSON 출력 구조]
     {{
       "sections": [
         {{
-          "title": "첫 번째 소제목 텍스트",
-          "content": "첫 번째 소제목에 해당하는 본문 텍스트입니다. 목록이 필요하면 * 항목 1\\n* 항목 2 와 같이 마크다운 형식으로 작성해주세요."
+          "title": "서론에 해당하는 소제목",
+          "content": "서론 본문입니다. 목록이 필요하면 * 항목 형식으로 작성해주세요."
         }},
         {{
-          "title": "두 번째 소제목 텍스트",
-          "content": "두 번째 소제목 본문입니다. 표가 필요하다면 | 헤더1 | 헤더2 |\\n|---|---|\\n| 내용1 | 내용2 | 와 같이 마크다운 형식으로 작성해주세요."
+          "title": "비교 분석표가 포함된 소제목",
+          "content": "비교 분석 본문입니다. 표는 | 헤더1 | 헤더2 |\\n|---|---|\\n| 내용1 | 내용2 | 형식으로 작성해주세요."
         }}
       ],
       "summary": "글 전체를 요약하는 한 문장입니다.",
-      "opinion": "전문가로서의 직설적인 개인 의견입니다."
+      "opinion": "전문가로서의 팁이나 직설적인 개인 의견입니다."
     }}
 
     [가장 중요한 규칙]
@@ -370,7 +383,7 @@ def generate_structured_content_json(article, keyword):
     [초안 내용]
     {article}
     """
-    json_response = call_gemini(prompt, temperature=0.5, is_json=True)
+    json_response = call_gemini(prompt, temperature=0.7, is_json=True)
     if json_response in ["SAFETY_BLOCKED", "API_ERROR"] or not json_response:
         return json_response if json_response else "API_ERROR"
     try:
@@ -476,63 +489,33 @@ def clean_and_refine_html(soup):
 # ✨ [핵심 수정] 전체 작업 흐름을 제어하는 메인 함수
 # ==============================================================================
 def markdown_to_html(content):
-    """
-    본문 내용에 포함된 간단한 마크다운(리스트, 테이블, 볼드)을 HTML로 변환합니다.
-    """
-    # ✅ 1. **text** => <strong>text</strong> 변환
+    """마크다운(리스트, 테이블, 볼드)을 HTML로 변환합니다."""
     content = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', content)
-
     lines = content.strip().split('\n')
-    html_output = []
-    in_list = False
-    in_table = False
-
+    html_output, in_list, in_table = [], False, False
     for line in lines:
         line = line.strip()
-
-        # ✅ 2. 문장 시작의 '*' 리스트 마커만 처리하고, 문장 내의 '*'는 제거
         if line.startswith('* '):
-            if not in_list:
-                html_output.append("<ul>")
-                in_list = True
-            # 나머지 문장에서 불필요한 '*' 제거
-            clean_line = line[2:].strip().replace('*', '')
-            html_output.append(f"<li>{clean_line}</li>")
+            if not in_list: html_output.append("<ul>"); in_list = True
+            html_output.append(f"<li>{line[2:].strip().replace('*', '')}</li>")
             continue
-        elif in_list:
-            html_output.append("</ul>")
-            in_list = False
-
-        # 테이블 처리
+        elif in_list: html_output.append("</ul>"); in_list = False
         if line.startswith('|') and line.endswith('|'):
-            if not in_table:
-                html_output.append("<table><tbody>")
-                in_table = True
+            if not in_table: html_output.append("<table><tbody>"); in_table = True
             if all(c in '-| ' for c in line): continue
             cells = [cell.strip().replace('*', '') for cell in line.split('|')[1:-1]]
             row_html = "".join([f"<td>{cell}</td>" for cell in cells])
             html_output.append(f"<tr>{row_html}</tr>")
             continue
-        elif in_table:
-            html_output.append("</tbody></table>")
-            in_table = False
-
-        # 일반 문단 처리 (불필요한 '*' 제거)
-        if line:
-            html_output.append(f"<p>{line.replace('*', '')}</p>")
-
+        elif in_table: html_output.append("</tbody></table>"); in_table = False
+        if line: html_output.append(f"<p>{line.replace('*', '')}</p>")
     if in_list: html_output.append("</ul>")
     if in_table: html_output.append("</tbody></table>")
-
     return "\n".join(html_output)
 
 
 def life_tips_start(article, keyword):
     """모든 단계마다 실패를 확인하고 즉시 중단하는 '실패-빠름' 로직 적용"""
-
-    # ✅ 데이터 정제(Cleaning) 단계를 여기서 가장 먼저 수행
-    article = article.replace("```html", "").replace("```", "").strip()
-
     if not wp:
         print("❌ WordPress 클라이언트가 설정되지 않아 포스팅을 중단합니다.")
         return False
@@ -553,6 +536,7 @@ def life_tips_start(article, keyword):
 
     # === 체크포인트 3: 썸네일/본문 이미지 생성 ===
     short_slug = slugify(keyword)[:50]
+
     thumb_media = stable_diffusion(article, "thumb", f"{final_title}", short_slug)
     if thumb_media is None:
         print(f"❌ 썸네일 이미지 생성 실패. 포스팅 중단.")
@@ -563,6 +547,9 @@ def life_tips_start(article, keyword):
     if scene_media is None:
         print(f"❌ 본문 이미지 생성 실패. 포스팅 중단.")
         return False
+
+    # ✅ [수정] 이미지 업로드 전, 캡션 정보 미리 추출
+    image_caption = scene_media.get('caption')
     scene_url = wp.call(UploadFile(scene_media)).get("link")
 
     # === 체크포인트 4: 메타정보 생성 ===
@@ -570,19 +557,18 @@ def life_tips_start(article, keyword):
         [s.get('title', '') + " " + s.get('content', '') for s in structured_content.get('sections', [])])
 
     meta_description = generate_meta_description(plain_text_content, keyword)
-    if meta_description == "API_ERROR":
-        print(f"❌ 메타 디스크립션 생성 실패. 포스팅 중단.")
+    if meta_description in ["SAFETY_BLOCKED", "API_ERROR"]:
+        print(f"❌ 메타 디스크립션 생성 실패({meta_description}). 포스팅 중단.")
         return False
 
     json_ld_content = generate_json_ld_faq(plain_text_content)
-    if isinstance(json_ld_content, str) and json_ld_content in ["SAFETY_BLOCKED", "API_ERROR"]:
+    if not isinstance(json_ld_content, str) or json_ld_content in ["SAFETY_BLOCKED", "API_ERROR"]:
         print(f"❌ JSON-LD 생성 실패({json_ld_content}). 포스팅 중단.")
         return False
 
     # === 모든 생성 작업 성공! 최종 조립 및 발행 ===
     print("✅ 모든 AI 콘텐츠 생성 성공! 최종 조립 및 발행을 시작합니다.")
 
-    # (조립 로직)
     body_html_parts = []
     for section in structured_content.get('sections', []):
         body_html_parts.append(f"<h2>{section.get('title', '')}</h2>")
@@ -593,8 +579,12 @@ def life_tips_start(article, keyword):
 
     soup = BeautifulSoup(final_body_html_str, 'html.parser')
     toc_html = create_table_of_contents(soup)
-    json_ld_script = f'<script type="application/ld+json">\n{json_ld_content}\n</script>' if json_ld_content else ""
-    img_html = f"<figure class='wp-block-image aligncenter size-large'><img src='{scene_url}' alt='{keyword}'/></figure>"
+    json_ld_script = f'<script type="application/ld+json">\n{json_ld_content}\n</script>'
+
+    # ✅ [수정] 캡션이 있을 경우 <figcaption>을 포함하도록 HTML 구조 변경
+    figcaption_html = f"<figcaption>{image_caption}</figcaption>" if image_caption else ""
+    img_html = f"<figure class='wp-block-image aligncenter size-large'><img src='{scene_url}' alt='{keyword}'/>{figcaption_html}</figure>"
+
     final_body_content = soup.decode_contents()
 
     final_html = f"""{json_ld_script}
@@ -605,7 +595,7 @@ def life_tips_start(article, keyword):
 """
 
     # === 체크포인트 5: 태그 추출 ===
-    auto_tags = extract_tags_from_html_with_gpt(final_body_html_str, keyword)
+    auto_tags = extract_tags_from_html_with_gpt(final_html, keyword)
     if not isinstance(auto_tags, list):
         print(f"❌ 태그 추출 실패({auto_tags}). 포스팅 중단.")
         return False
