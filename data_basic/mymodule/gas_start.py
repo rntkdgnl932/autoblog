@@ -9,6 +9,7 @@ import re
 from io import BytesIO
 from PIL import Image
 import google.generativeai as genai
+from PyQt5.QtTest import QTest
 from wordpress_xmlrpc import Client, WordPressPost
 from wordpress_xmlrpc.compat import xmlrpc_client
 from wordpress_xmlrpc.methods.posts import NewPost
@@ -58,6 +59,7 @@ def call_gemini(prompt, temperature=0.6, is_json=False, max_retries=3):
     API 호출 실패 시 원인을 파악하여 '통신 오류'에 대해서만 자동 재시도합니다.
     """
     for attempt in range(max_retries):
+        QTest.qWait(100)
         try:
             model = genai.GenerativeModel('gemini-2.5-pro')
             safety_settings = {
@@ -137,86 +139,92 @@ def summarize_for_description(content, title=None, keyword=None):
 
 
 # $ 사진 생성
-# $ 사진 생성 (프롬프트 강화 버전)
 def stable_diffusion(article, filename, description, slug):
+    """
+    [최종 수정] article 요약 프롬프트 추가 및 AI 실패 시 대체 프롬프트 사용 로직 추가
+    """
     try:
-        print(f"▶ Gemini로 [{filename}] 이미지 프롬프트 생성 요청: {description}")
+        print(f"▶ Gemini로 [{filename}] 이미지 프롬프트 및 캡션 동시 생성 요청...")
 
-        ENHANCED_NEGATIVE = (
-            "(deformed, distorted, disfigured:1.3), "
-            "poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, "
-            "(mutated hands and fingers:1.4), disconnected limbs, mutation, mutated, "
-            "ugly, disgusting, blurry, amputation, (text, watermark, signature, username, artist name, logo)"
-        )
-
+        # ... (style_guideline, ENHANCED_NEGATIVE 등은 이전과 동일) ...
         if filename == "thumb":
-            meta_prompt = f"""
-            [역할] 당신은 AI 이미지 생성 모델 'Stable Diffusion'의 전문 프롬프트 엔지니어입니다.
-            [지시] '{description}'이라는 주제에 맞춰, 시선을 사로잡는 블로그 **썸네일**용 프롬프트를 생성해주세요.
-            [스타일 가이드] 스타일: **미니멀리즘, 플랫 디자인, 벡터 아트**, 색상: 밝고 선명한 색상, 구성: 주제를 상징적으로 표현, 절대 조건: 글자(Text) 미포함
-            [출력 형식] 가장 중요한 키워드부터, 쉼표(,)로 구분된 영어 키워드 목록으로만 출력하세요.
-            """
-        else:  # "scene"
-            meta_prompt = f"""
-            [역할] 당신은 AI 이미지 생성 모델 'Stable Diffusion'의 전문 프롬프트 엔지니어입니다.
-            [지시] '{description}'이라는 주제의 블로그 **본문 삽입용** 프롬프트를 생성해주세요.
-            [스타일 가이드] 스타일: **극사실적, 고품질 사진**, 인물/감성: 자연스럽고 긍정적인 표정, 조명/배경: 자연광 또는 cinematic lighting, 배경 흐림(depth of field), 절대 조건: 글자(Text) 미포함
-            """
-
-        # ✅ 1. Gemini를 호출하여 SD 프롬프트 생성을 시도
-        short_prompt_result = call_gemini(meta_prompt, temperature=0.5)
-
-        # ✅ 2. 반환값을 명확히 체크하여 진행 여부 판단
-        if isinstance(short_prompt_result, str) and short_prompt_result not in ["SAFETY_BLOCKED", "API_ERROR"]:
-            # === 성공 시에만 이 블록을 실행 ===
-            short_prompt = short_prompt_result
-            print(f"🖼 생성된 프롬프트: {short_prompt}")
-
-            final_prompt = f"masterpiece, best quality, 8k, ultra high res, {short_prompt}"
-
-            payload = {
-                "prompt": final_prompt,
-                "negative_prompt": ENHANCED_NEGATIVE,
-                "steps": 30, "width": 512, "height": 512,
-                "sampler_index": "Euler a", "cfg_scale": 7.5,
-                "override_settings": {
-                    "sd_model_checkpoint": "xxmix9realistic_v40.safetensors [18ed2b6c48]"
-                }
-            }
-
-            print("▶ Stable Diffusion 이미지 요청")
-            response = requests.post("http://127.0.0.1:7860/sdapi/v1/txt2img", json=payload, timeout=300)
-            response.raise_for_status()
-
-            b64_image = response.json()['images'][0]
-            image_bytes = base64.b64decode(b64_image)
-
-            img = Image.open(BytesIO(image_bytes)).convert("RGB")
-            # ✅ [핵심 수정] 저장 포맷을 JPEG에서 WEBP로 변경
-            buf = BytesIO()
-            # quality: 80~90 사이가 품질과 용량 면에서 균형이 좋습니다.
-            img.save(buf, format="WEBP", quality=90)
-            image = BytesIO(buf.getvalue())
-
-            # ✅ 파일 이름 확장자도 .webp로 변경
-            image.name = f"{slug}_{filename}.webp"
-            image.seek(0)
-
-            media = {
-                'name': image.name, 'type': 'image/webp', 'caption': short_prompt,
-                'description': description, 'bits': xmlrpc_client.Binary(image.read())
-            }
-            return media
-            # === 성공 블록 끝 ===
-
+            style_guideline = "- 스타일: **미니멀리즘, 플랫 디자인, 벡터 아트**\n- 구성: 주제를 상징적으로 표현하는 아이콘 또는 오브젝트 중심"
+        elif filename == "scene":
+            style_guideline = "- 스타일: **극사실적, 고품질 사진**\n- 구성: 주제의 개념이나 상황을 은유적으로 묘사\n- 조명/배경: 자연광 또는 cinematic lighting, 배경 흐림(depth of field)"
         else:
-            # ❌ 실패 시 (short_prompt_result가 "SAFETY_BLOCKED" 또는 "API_ERROR"인 경우)
-            print(f"❌ 이미지 프롬프트 생성 실패({short_prompt_result}). 이미지 생성을 중단합니다.")
-            return None
+            style_guideline = "- 스타일: 고품질의 상징적인 사진"
+
+        # ✅ 1. article 요약 내용이 추가된, 개선된 프롬프트
+        meta_prompt = f"""
+        [역할] 당신은 추상적인 개념을 시각적으로 구현하는 데 능숙한 AI 이미지 프롬프트 엔지니어이자 카피라이터입니다.
+        [지시] 아래 '글 요약'과 '주제'를 참고하여 Stable Diffusion용 'image_prompt'와 블로그 독자용 'caption'을 생성해주세요.
+        [가장 중요한 규칙]
+        - 인물보다 주제를 가장 잘 상징하는 사물, 풍경, 추상적인 이미지로 자연스럽게 표현하세요.
+        - 프롬프트에 글자(Text)가 포함되면 안 됩니다.
+        [스타일 가이드] {style_guideline}
+        [출력 형식]
+        - 반드시 {{"image_prompt": "...", "caption": "..."}} 형식의 순수 JSON으로만 응답해야 합니다.
+        [글 요약] {article[:500]}
+        [주제] {description}
+        """
+
+        response_text = call_gemini(meta_prompt, temperature=0.7, is_json=True)
+
+        # ✅ 2. AI 프롬프트 생성 실패 시 '대체 프롬프트' 사용
+        try:
+            # API 호출 자체가 실패했는지 먼저 확인
+            if response_text in ["SAFETY_BLOCKED", "API_ERROR"] or not response_text:
+                raise ValueError(f"API 호출 실패: {response_text}")
+
+            # 성공 시, JSON 파싱 시도
+            parsed_data = json.loads(response_text)
+            short_prompt = parsed_data.get("image_prompt")
+            image_caption = parsed_data.get("caption")
+
+            # 파싱된 데이터에 필수 키가 있는지 확인
+            if not all([short_prompt, image_caption]):
+                raise ValueError("JSON 결과물에 필수 키가 누락되었습니다.")
+
+        except Exception as e:
+            # API 호출 실패 또는 JSON 파싱/검증 실패 시 모두 여기서 처리
+            print(f"⚠️ AI 프롬프트/캡션 생성 실패({e}). 대체 프롬프트를 사용합니다.")
+            short_prompt = f"{description.replace(' ', ', ')}, symbolic, high quality, photorealistic"
+            image_caption = description
+
+        print(f"🖼 생성된 프롬프트: {short_prompt}")
+        print(f"✍️ 생성된 캡션: {image_caption}")
+
+        ENHANCED_NEGATIVE = "(deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, (mutated hands and fingers:1.4), ugly, blurry, (text, watermark, signature)"
+
+        final_prompt = f"masterpiece, best quality, 8k, ultra high res, {short_prompt}"
+        payload = {"prompt": final_prompt, "negative_prompt": ENHANCED_NEGATIVE, "steps": 30, "width": 512,
+                   "height": 512, "sampler_index": "Euler a", "cfg_scale": 7.5}
+
+        response = requests.post("http://127.0.0.1:7860/sdapi/v1/txt2img", json=payload, timeout=300)
+        response.raise_for_status()
+
+        b64_image = response.json()['images'][0]
+        image_bytes = base64.b64decode(b64_image)
+
+        img = Image.open(BytesIO(image_bytes)).convert("RGB")
+        buf = BytesIO()
+        img.save(buf, format="WEBP", quality=85)
+        image = BytesIO(buf.getvalue())
+        image.name = f"{slug}_{filename}.webp"
+        image.seek(0)
+
+        media = {
+            'name': image.name,
+            'type': 'image/webp',
+            'caption': image_caption,
+            'description': description,
+            'bits': xmlrpc_client.Binary(image.read())
+        }
+        return (media, image_caption)
 
     except Exception as e:
         print(f"⚠️ Stable Diffusion 처리 중 예외 발생: {e}")
-        return None
+        return (None, None)
 
 
 # $ AI 상태 체크
@@ -515,7 +523,9 @@ def markdown_to_html(content):
 
 
 def life_tips_start(article, keyword):
-    """모든 단계마다 실패를 확인하고 즉시 중단하는 '실패-빠름' 로직 적용"""
+    """
+    [최종 안정화 버전] 모든 체크포인트와 본문 조립 로직이 포함된 완전한 함수
+    """
     if not wp:
         print("❌ WordPress 클라이언트가 설정되지 않아 포스팅을 중단합니다.")
         return False
@@ -536,20 +546,16 @@ def life_tips_start(article, keyword):
 
     # === 체크포인트 3: 썸네일/본문 이미지 생성 ===
     short_slug = slugify(keyword)[:50]
-
-    thumb_media = stable_diffusion(article, "thumb", f"{final_title}", short_slug)
+    thumb_media, _ = stable_diffusion(article, "thumb", f"{final_title}", short_slug)
     if thumb_media is None:
         print(f"❌ 썸네일 이미지 생성 실패. 포스팅 중단.")
         return False
     thumbnail_id = wp.call(UploadFile(thumb_media)).get("id")
 
-    scene_media = stable_diffusion(article, "scene", f"{final_title}", short_slug)
+    scene_media, scene_caption = stable_diffusion(article, "scene", f"{final_title}", short_slug)
     if scene_media is None:
         print(f"❌ 본문 이미지 생성 실패. 포스팅 중단.")
         return False
-
-    # ✅ [수정] 이미지 업로드 전, 캡션 정보 미리 추출
-    image_caption = scene_media.get('caption')
     scene_url = wp.call(UploadFile(scene_media)).get("link")
 
     # === 체크포인트 4: 메타정보 생성 ===
@@ -562,13 +568,14 @@ def life_tips_start(article, keyword):
         return False
 
     json_ld_content = generate_json_ld_faq(plain_text_content)
-    if not isinstance(json_ld_content, str) or json_ld_content in ["SAFETY_BLOCKED", "API_ERROR"]:
+    if json_ld_content in ["SAFETY_BLOCKED", "API_ERROR"] or not json_ld_content:
         print(f"❌ JSON-LD 생성 실패({json_ld_content}). 포스팅 중단.")
         return False
 
     # === 모든 생성 작업 성공! 최종 조립 및 발행 ===
     print("✅ 모든 AI 콘텐츠 생성 성공! 최종 조립 및 발행을 시작합니다.")
 
+    # ✅ [핵심 복원] 본문 조립 로직
     body_html_parts = []
     for section in structured_content.get('sections', []):
         body_html_parts.append(f"<h2>{section.get('title', '')}</h2>")
@@ -581,8 +588,7 @@ def life_tips_start(article, keyword):
     toc_html = create_table_of_contents(soup)
     json_ld_script = f'<script type="application/ld+json">\n{json_ld_content}\n</script>'
 
-    # ✅ [수정] 캡션이 있을 경우 <figcaption>을 포함하도록 HTML 구조 변경
-    figcaption_html = f"<figcaption>{image_caption}</figcaption>" if image_caption else ""
+    figcaption_html = f"<figcaption>{scene_caption}</figcaption>" if scene_caption else ""
     img_html = f"<figure class='wp-block-image aligncenter size-large'><img src='{scene_url}' alt='{keyword}'/>{figcaption_html}</figure>"
 
     final_body_content = soup.decode_contents()
