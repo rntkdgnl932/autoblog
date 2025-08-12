@@ -2,7 +2,8 @@
 dist
 mysettings
 asd.png
-error_screenshot.png
+error_screenshot
+.playwright_profile
 naver_cookies.json
 chromedriver
 LICENSE
