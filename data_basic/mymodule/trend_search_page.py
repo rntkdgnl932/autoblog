@@ -1,3 +1,6 @@
+
+
+
 import variable as v_
 
 def get_zum_ai_issue_trends():
@@ -334,4 +337,128 @@ def search_naver_blog_top_post(keyword):
 
 # 예시
 # search_naver_blog_top_post("전기요금 할인 제도")
+
+
+
+#$ 구글 트렌드
+import traceback
+import requests
+from bs4 import BeautifulSoup
+from googlesearch import search
+
+
+def search_web_for_keyword(keyword: str, num_results: int = 3) -> list[dict] | bool:
+    """
+    주어진 키워드로 구글 웹 검색을 수행하고, 각 URL에 접속하여
+    제목(title)과 요약(snippet)을 추출하여 반환합니다.
+
+    Args:
+        keyword (str): 검색할 키워드.
+        num_results (int): 처리할 검색 결과의 수. 기본값은 3개.
+
+    Returns:
+        list[dict] | bool:
+            - 성공 시: 각 결과가 title, link, snippet을 포함하는 딕셔너리 리스트.
+            - 실패 시: False를 반환.
+    """
+    if not keyword:
+        print("❌ 에러: 검색어(keyword)가 비어있습니다.")
+        return False
+
+    print(f"▶ 웹 검색 실행: '{keyword}' (결과 {num_results}개 요청)")
+
+    try:
+        # 1. 구글 검색을 통해 URL 리스트 가져오기 (Generator를 list로 변환)
+        # lang="ko"로 한국어 검색 결과를 우선적으로 가져옵니다.
+        urls = list(search(keyword, num_results=num_results, lang="ko"))
+
+        if not urls:
+            print(f"❌ 검색 결과 없음: '{keyword}'에 대한 검색 결과가 없습니다.")
+            return False
+
+        print(f"✅ URL 수집 완료: {len(urls)}개. 이제 각 페이지에서 정보를 추출합니다.")
+
+        formatted_results = []
+        # 2. 각 URL에 접속하여 제목과 내용(snippet) 추출
+        for url in urls:
+            try:
+                # 웹사이트가 차단하지 않도록 User-Agent를 설정합니다.
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+                response = requests.get(url, headers=headers, timeout=5)
+                response.raise_for_status()  # HTTP 에러 발생 시 예외 발생
+
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                # 제목 추출 (og:title, 없으면 <title> 태그)
+                title = soup.find("meta", property="og:title")
+                if title:
+                    title = title.get("content")
+                else:
+                    title = soup.title.string if soup.title else "제목 없음"
+
+                # 요약 추출 (og:description, 없으면 meta description)
+                snippet = soup.find("meta", property="og:description")
+                if snippet:
+                    snippet = snippet.get("content")
+                else:
+                    snippet = soup.find("meta", attrs={"name": "description"})
+                    if snippet:
+                        snippet = snippet.get("content")
+                    else:
+                        # 위 태그들이 없을 경우, 첫 번째 <p> 태그의 텍스트를 일부 사용
+                        first_p = soup.find('p')
+                        snippet = first_p.get_text() if first_p else "내용 요약 없음"
+
+                formatted_results.append({
+                    "title": title.strip(),
+                    "link": url,
+                    "snippet": snippet.strip()
+                })
+                print(f"  - 성공: {url}")
+
+            except requests.exceptions.RequestException as e:
+                # 특정 페이지 접속 실패 시 건너뛰고 다음 URL 처리
+                print(f"  - 실패: {url} (이유: {e})")
+                continue  # 다음 루프로 넘어감
+            except Exception as e:
+                print(f"  - 실패: {url} (알 수 없는 에러: {e})")
+                continue
+
+        if not formatted_results:
+            print(f"❌ 유효한 검색 결과 없음: 수집한 URL에서 정보를 추출하지 못했습니다.")
+            return False
+
+        print(f"✅ 정보 추출 완료: 최종적으로 유효한 결과 {len(formatted_results)}개 수집")
+        return formatted_results
+
+    except Exception:
+        error_details = traceback.format_exc()
+        print(f"❌ 치명적 검색 에러 발생: {error_details}")
+        return False
+
+#
+# if __name__ == '__main__':
+#     # 이 파일(trend_search_page.py)을 직접 실행했을 때만 동작하는 테스트 코드
+#     print("--- search_web_for_keyword 함수 테스트 ---")
+#
+#     test_keyword = "파이썬 블로그 자동화"
+#     search_results = search_web_for_keyword(test_keyword, num_results=3)
+#
+#     if search_results:
+#         print(f"\n[테스트 결과: '{test_keyword}']")
+#         for i, result in enumerate(search_results, 1):
+#             print(f"  {i}. 제목: {result['title']}")
+#             print(f"     링크: {result['link']}")
+#             print(f"     내용: {result['snippet'][:80]}...")
+#             print("-" * 20)
+#     else:
+#         print(f"\n[테스트 실패] '{test_keyword}'에 대한 결과를 가져오지 못했습니다.")
+
+
+
+
+
+
+
 

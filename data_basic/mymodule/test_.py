@@ -31,8 +31,6 @@ def go_test(keyword):
     from trend_search_page import get_zum_ai_issue_trends, get_google_trending_keywords, get_youtube_trending_titles, \
         fetch_health_titles, collect_all_topics, filter_topics_by_category, search_naver_blog_top_post
     from organization_info import scan_internet
-    from redesign_existing_posts import redesign_posts_by_category_restapi
-    from gas_start import get_gemini_response
 
     try:
         print("test")
@@ -53,32 +51,6 @@ def go_test(keyword):
             plus = 960 * 4
         elif cla == "six":
             plus = 960 * 5
-
-        # redesign_all_recent_posts()
-
-        blogger_prompt = """
-            [역할]
-            당신은 최신 정부 정책을 일반인들이 이해하기 쉽게 설명해주는 '워드프레스 전문 블로거'입니다.
-            독자들의 흥미를 끌 수 있도록 제목을 붙이고, 친근하면서도 전문적인 어조로 글을 작성해주세요.
-
-            [요청]
-            '민생회복 소비쿠폰'에 대한 블로그 포스팅 초안을 작성해주세요. 아래 내용을 포함해주세요.
-            - 정책의 도입 배경
-            - 쿠폰 사용처 및 사용 방법
-            - 신청 자격 및 방법
-            - 예상되는 기대 효과
-            - 신청 자격에 따른 신청 금액
-            """
-
-        print("🤖 제미나이에게 블로그 포스팅 초안 작성을 요청합니다...")
-        print("-" * 40)
-
-        # 함수 호출
-        blog_post_draft = get_gemini_response(blogger_prompt)
-
-        # 결과 출력
-        print(blog_post_draft)
-
 
 
 

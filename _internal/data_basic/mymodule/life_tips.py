@@ -1139,7 +1139,7 @@ def load_existing_titles():
     data = resp.json()
     titles = [post['title']['rendered'] for post in data]
 
-    print(f"📌 최신 글 {len(titles)}개의 제목을 가져왔습니다.")
+    print(f"📌 최신 글 {len(titles)}개의 제목을 가져왔습니다. gpt")
     return titles
 
 #$ 제목 정하기

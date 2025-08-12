@@ -6,7 +6,7 @@ from wordpress_xmlrpc.methods.posts import GetPost, EditPost
 
 import time
 import variable as v_
-from life_tips import (
+from gas_start import (
     optimize_html_for_seo_with_gpt,
     summarize_for_description,
     stable_diffusion
@@ -97,63 +97,11 @@ def redesign_existing_post(post_id: int):
 
 
 # ✅ 여러 글 반복 처리 예시
-def redesign_posts_by_category_restapi(category_id: int, max_count=None):
-    import requests
-    import time
 
-    print(f"▶ 카테고리 ID {category_id}의 글들을 REST API로 불러옵니다")
-    per_page = 100
-    page = 1
-    posts = []
-
-    while True:
-        url = (
-            f"{v_.domain_adress}/wp-json/wp/v2/posts"
-            f"?categories={category_id}&per_page={per_page}&page={page}&orderby=date&order=desc"
-        )
-        resp = requests.get(url)
-        if resp.status_code != 200:
-            print(f"❌ 요청 실패 (페이지 {page}): {resp.status_code}")
-            break
-
-        page_posts = resp.json()
-        if not page_posts:
-            break
-
-        posts.extend(page_posts)
-        print(f"→ 페이지 {page}에서 {len(page_posts)}개 로딩됨")
-
-        if len(page_posts) < per_page:
-            break
-        page += 1
-
-    if max_count:
-        posts = posts[:max_count]
-
-    print(f"✅ 최종 리디자인 대상 글 수: {len(posts)}개")
-
-    for i, post in enumerate(posts, 1):
-        try:
-            post_id = post['id']
-            title = post['title']['rendered']
-            print(f"▶ [{i}/{len(posts)}] 리디자인 중 - ID: {post_id}, 제목: {title}")
-            redesign_existing_post(post_id)  # 기존 XML-RPC 기반 업데이트 함수
-            print(f"✅ 완료 - {title}\n")
-            time.sleep(2)
-        except Exception as e:
-            print(f"❌ 오류 - ID: {post_id} | 제목: {title} | 에러: {e}")
-
-
-
-
-
-
-    # redesign_posts_by_category(category_id=3)  # 전체 글 모두 리디자인
-    # redesign_posts_by_category(category_id=17, max_count=10)
 
 
 def redesign_existing_post(post_id: int):
-    from life_tips import summarize_for_description, stable_diffusion, optimize_html_for_seo_with_gpt
+    from gas_start import summarize_for_description, stable_diffusion, optimize_html_for_seo_with_gpt
 
     print(f"▶ 기존 글 리디자인 시작 - ID: {post_id}")
     wp = Client(v_.domain_adress + "/xmlrpc.php", v_.wd_id, v_.wd_pw)

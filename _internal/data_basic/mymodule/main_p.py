@@ -1,19 +1,18 @@
 # * QTabWidget 탭에 다양한 위젯 추가
-import numpy as np
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QIcon, QFont, QColor       #아이콘
-from PyQt5.QtCore import Qt, QThread
-from PyQt5.QtTest import *
-
 import sys
 
+import numpy as np
+from PyQt5.QtCore import Qt, QThread
+from PyQt5.QtTest import *
+from PyQt5.QtWidgets import *
+
+import variable
 import variable as v_
 
 sys.path.append('C:/my_games/' + str(v_.game_folder) + '/' + str(v_.data_folder) + '/mymodule')
 import os
 import time
 from datetime import datetime
-import random
 import os.path
 from datetime import date, timedelta
 import re
@@ -23,37 +22,25 @@ from screeninfo import get_monitors
 import cv2
 # print(cv2.__version__)
 # import matplotlib.pyplot as plt
-from PIL import Image
 
-import numpy
 # 패키지 다운 필요
 import pytesseract
 # from pytesseract import image_to_string #
 import pyautogui
-import pydirectinput
 import clipboard
 # import keyboard
 # 패키지 다운 불필요
-import tkinter
-import webbrowser
-import colorthief
 
 # 나의 모듈
 # from function import imgs_set, imgs_set_, click_pos_2, random_int, text_check_get_3, int_put_, text_check_get, \
 #     click_with_image, drag_pos, image_processing, get_region, click_pos_reg
-from function_game import imgs_set, imgs_set_, click_pos_2, random_int, text_check_get_3, int_put_, text_check_get, click_with_image, drag_pos, image_processing, get_region, click_pos_reg, win_left_move, win_right_move
+from function_game import imgs_set_, click_pos_reg, win_right_move
 
 
-from massenger import line_monitor, line_to_me
-from schedule import myQuest_play_check, myQuest_play_add
-from life_tips import suggest_life_tip_topic
-
-from stop_event18 import _stop_please
+from massenger import line_monitor
 
 from test_ import go_test
 
-
-from server import game_start
 import variable as v_
 
 sys.setrecursionlimit(10 ** 7)
@@ -387,6 +374,10 @@ class SecondTab(QWidget):
         file_path_topic_system = dir_path + "\\mysettings\\idpw\\topic_system.txt"
         file_path_topic_user = dir_path + "\\mysettings\\idpw\\topic_user.txt"
         file_path_gas_key = dir_path + "\\mysettings\\idpw\\gas_key.txt"
+        file_path_scrapingbee_key = dir_path + "\\mysettings\\idpw\\scrapingbee_key.txt"
+        file_path_naver_id = dir_path + "\\mysettings\\idpw\\naver_id.txt"
+        file_path_naver_pw = dir_path + "\\mysettings\\idpw\\naver_pw.txt"
+        file_path_naver_cafeid = dir_path + "\\mysettings\\idpw\\naver_cafeid.txt"
 
 
         for i in range(4):
@@ -504,6 +495,60 @@ class SecondTab(QWidget):
             else:
                 with open(file_path_gas_key, "w", encoding='utf-8-sig') as file:
                     file.write("none")
+
+
+        for i in range(3):
+            if os.path.isfile(file_path_scrapingbee_key) == True:
+                # 파일 읽기
+                with open(file_path_scrapingbee_key, "r", encoding='utf-8-sig') as file:
+                    read_my_scrapingbee_key = file.read()
+                    v_.my_scrapingbee_key = read_my_scrapingbee_key
+                    break
+
+
+            else:
+                with open(file_path_scrapingbee_key, "w", encoding='utf-8-sig') as file:
+                    file.write("none")
+
+        for i in range(3):
+            if os.path.isfile(file_path_naver_id) == True:
+                # 파일 읽기
+                with open(file_path_naver_id, "r", encoding='utf-8-sig') as file:
+                    read_my_naver_id = file.read()
+                    v_.my_naver_id = read_my_naver_id
+                    break
+
+
+            else:
+                with open(file_path_naver_id, "w", encoding='utf-8-sig') as file:
+                    file.write("none")
+
+        for i in range(3):
+            if os.path.isfile(file_path_naver_pw) == True:
+                # 파일 읽기
+                with open(file_path_naver_pw, "r", encoding='utf-8-sig') as file:
+                    read_my_naver_pw = file.read()
+                    v_.my_naver_pw = read_my_naver_pw
+                    break
+
+
+            else:
+                with open(file_path_naver_pw, "w", encoding='utf-8-sig') as file:
+                    file.write("none")
+
+        for i in range(3):
+            if os.path.isfile(file_path_naver_cafeid) == True:
+                # 파일 읽기
+                with open(file_path_naver_cafeid, "r", encoding='utf-8-sig') as file:
+                    read_my_naver_cafeid = file.read()
+                    v_.my_naver_cafeid = read_my_naver_cafeid
+                    break
+
+
+            else:
+                with open(file_path_naver_cafeid, "w", encoding='utf-8-sig') as file:
+                    file.write("27960969")
+
 
         if os.path.isfile(file_path_two) == True:
             # 파일 읽기
@@ -1061,10 +1106,25 @@ class FirstTab(QWidget):
         temporary_layout = QVBoxLayout()
         temporary_layout.addWidget(self.temporary_example)
         temporary_layout.addWidget(self.require_temporary)
-        temporary_upload = QPushButton('임시글 발행')
+        temporary_upload = QPushButton('임시 글 발행')
         temporary_upload.clicked.connect(self.onActivated_temporary_upload)
         temporary_layout.addWidget(temporary_upload)
         self.temporary_groupbox.setLayout(temporary_layout)
+
+        # 이슈글 발행
+
+        self.issue_groupbox = QGroupBox('이슈 글 발행하기')
+        self.issue_example = QLabel("키워드 적어 아래 발행 버튼 눌러주세요")
+        self.require_issue = QLineEdit(self)
+
+        issue_layout = QVBoxLayout()
+        issue_layout.addWidget(self.issue_example)
+        issue_layout.addWidget(self.require_issue)
+        issue_upload = QPushButton('이슈 글 발행')
+        issue_upload.clicked.connect(self.onActivated_issue_upload)
+        issue_layout.addWidget(issue_upload)
+        self.issue_groupbox.setLayout(issue_layout)
+
 
         # 레이아웃
 
@@ -1099,6 +1159,7 @@ class FirstTab(QWidget):
         bottom_box_qv = QVBoxLayout()
         bottom_box_qv.addWidget(self.prompt_groupbox)
         bottom_box_qv.addWidget(self.temporary_groupbox)
+        bottom_box_qv.addWidget(self.issue_groupbox)
 
 
         bottom_box_qh = QHBoxLayout()
@@ -1321,7 +1382,6 @@ class FirstTab(QWidget):
 
     def onActivated_prompt_upload(self, text):
         # 프롬프트 추가
-        from test_ import go_test
         print("onActivated_prompt_upload")
         is_prompt = "- " + self.require_prompt.text() + "\n"
 
@@ -1351,6 +1411,14 @@ class FirstTab(QWidget):
 
         x = temporary_upload(self)
         is_keyword = self.require_temporary.text()
+        x.set_keyword(is_keyword)  # 키워드 전달
+        x.start()
+
+
+    def onActivated_issue_upload(self, text):
+
+        x = issue_upload_class(self)
+        is_keyword = self.require_issue.text()
         x.set_keyword(is_keyword)  # 키워드 전달
         x.start()
 
@@ -2155,13 +2223,60 @@ class temporary_upload(QThread):
         self.keyword = keyword
 
     def run(self):
-        from life_tips import life_tips_keyword
+        from gas_start import life_tips_keyword
 
         print("임시블로그 업로드(ver " + version + ")")
         print("전달 받은 키워드:", self.keyword)
         life_tips_keyword(self.keyword)
 
 
+class issue_upload_class(QThread):
+
+
+
+    # parent = MainWidget을 상속 받음.
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.parent = parent
+        self.keyword = None  # 전달 받을 키워드 변수
+
+    def set_keyword(self, keyword):
+        self.keyword = keyword
+
+    def run(self):
+        from issue_upload import generate_issue_draft, add_personal_view
+        from blog_function import check_cafe_access, post_the_article
+        from naver_cafe_upload import post_to_naver_cafe
+        from typing import List, Optional
+
+        print("이슈블로그 업로드(ver " + version + ")")
+        print("전달 받은 키워드:", self.keyword)
+
+        # ====== 업로드할 콘텐츠 예시 ======
+        POST_TITLE = "[자동업로드] 예시 제목입니다"
+        # HTML 본문 (순수 텍스트도 가능). 에디터의 'HTML' 편집 모드가 활성화되면 그대로 들어갑니다.
+        POST_HTML = """
+        <h2>자동 업로드 본문 예시</h2>
+        <p>이 글은 Playwright로 자동 업로드되었습니다.</p>
+        <ul>
+          <li>항목 1</li>
+          <li>항목 2</li>
+        </ul>
+        <p><em>이미지도 함께 업로드할 수 있어요.</em></p>
+        """
+
+        # 업로드할 이미지 경로들(선택). 없으면 빈 리스트.
+        IMAGE_PATHS: List[str] = [
+            # r"C:\path\to\image1.jpg",
+            # r"C:\path\to\image2.png",
+        ]
+
+        post_to_naver_cafe(
+            headless=False,
+            title=POST_TITLE,
+            html_body=POST_HTML,
+            image_paths=IMAGE_PATHS,
+        )
 
 
 class Monitoring_one(QThread):
@@ -2408,13 +2523,10 @@ class game_Playing(QThread):
 
     def run(self):
 
-        import sys
-        from PyQt5.QtWidgets import QApplication
         from PyQt5.QtTest import QTest
         import random
-        from life_tips import life_tips_keyword
         from trend_search_page import collect_all_topics, filter_topics_by_category
-        from gas_start import check_gemini_ready
+        from gas_start import check_gemini_ready, suggest_life_tip_topic_issue, suggest_life_tip_topic
 
         try:
             print("game_Playing")
@@ -2470,11 +2582,11 @@ class game_Playing(QThread):
 
                     # QTest.qWait(18000000)
 
-                    total_minutes = 480  # 총 8시간 = 480분
+                    total_minutes = 420  # 총 7시간 = 420분
                     interval_minutes = 5
                     interval_ms = interval_minutes * 60 * 1000  # 5분 = 300,000ms
 
-                    print("⏳ 대기 시작: 총 8시간 (480분)\n")
+                    print("⏳ 대기 시작: 총 7시간 (420분)\n")
 
                     for i in range(1, (total_minutes // interval_minutes) + 1):
                         QTest.qWait(interval_ms)
@@ -2488,7 +2600,7 @@ class game_Playing(QThread):
                         else:
                             print(f"⌛ {elapsed_minutes}분 경과 / ⏱️ 남은 시간: {remaining_minutes}분")
 
-                    print("\n✅ 대기 완료: 총 8시간(480분) 경과!")
+                    print("\n✅ 대기 완료: 총 7시간(420분) 경과!")
 
 
                 else:

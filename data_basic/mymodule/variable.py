@@ -18,7 +18,11 @@ my_google_custom_api = "none"
 my_topic_system = "none"
 my_topic_user = "none"
 my_gas_key = "none"
+my_scrapingbee_key = "none"
 call_back_gemini = False
+my_naver_id = "none"
+my_naver_pw = "none"
+my_naver_cafeid = "none"
 
 # 게임 및 폴더 관련
 this_game = "auto_blog"

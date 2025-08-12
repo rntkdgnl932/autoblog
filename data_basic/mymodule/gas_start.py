@@ -1,7 +1,6 @@
 # 🔄 [Gemini 2.5 Pro 최종 버전] 자동 블로그 업로드 스크립트
 # 모델: Gemini 2.5 Pro 전면 사용
 
-import os
 import requests
 import base64
 import json
@@ -17,89 +16,15 @@ from wordpress_xmlrpc.methods.media import UploadFile
 from bs4 import BeautifulSoup
 from slugify import slugify
 from datetime import datetime
+from blog_function import call_gemini
 
-# 사용자 정의 변수 모듈 (유동적으로 변경되는 부분)
 import variable as v_
 
-# --- 설정 로드 ---
-dir_path = "C:\\my_games\\" + str(v_.game_folder)
-file_path_one = dir_path + "\\mysettings\\idpw\\onecla.txt"
-if os.path.isfile(file_path_one):
-    with open(file_path_one, "r", encoding='utf-8-sig') as file:
-        lines_one = file.read().split('\n')
-        v_.wd_id = lines_one[0]
-        v_.wd_pw = lines_one[1]
-        v_.domain_adress = lines_one[2]
-        if len(lines_one) > 3:
-            # variable.py 또는 텍스트 파일에 Gemini API 키를 저장했다고 가정
-            v_.gemini_api_key = lines_one[3]
-        if len(lines_one) > 4:
-            v_.my_category = lines_one[4]
-else:
-    print('one 파일 없당')
-
-# --- 클라이언트 설정 ---
-# ✅ Gemini API + WordPress 클라이언트 설정
-try:
-    genai.configure(api_key=v_.my_gas_key)
-except Exception as e:
-    print(f"❌ Gemini API 키 설정 실패: {e}")
 
 wp = Client(f"{v_.domain_adress}/xmlrpc.php", v_.wd_id, v_.wd_pw)
 CATEGORY = v_.my_category if hasattr(v_, 'my_category') else "일반"
 
 
-# ==============================================================================
-# Gemini API 호출 래퍼 함수 (안전 설정 포함)
-# ==============================================================================
-def call_gemini(prompt, temperature=0.6, is_json=False, max_retries=3):
-    import time  # time.sleep()을 위해 상단에 추가해야 합니다.
-    from google.generativeai.types import RequestOptions
-    """
-    API 호출 실패 시 원인을 파악하여 '통신 오류'에 대해서만 자동 재시도합니다.
-    """
-    for attempt in range(max_retries):
-        QTest.qWait(100)
-        try:
-            model = genai.GenerativeModel('gemini-2.5-pro')
-            safety_settings = {
-                "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE", "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
-                "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE", "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE",
-            }
-            generation_config = genai.types.GenerationConfig(
-                temperature=temperature, response_mime_type="application/json" if is_json else "text/plain"
-            )
-
-            # ✅ 2. 일반 dict 대신, import한 RequestOptions 객체를 사용합니다.
-            request_options = RequestOptions(timeout=300)
-
-            response = model.generate_content(
-                prompt,
-                generation_config=generation_config,
-                safety_settings=safety_settings,
-                request_options=request_options  # 수정된 객체 전달
-            )
-
-            if response.parts:
-                return response.text
-
-            elif response.candidates and response.candidates[0].finish_reason.name == "SAFETY":
-                print("⚠️ API 응답이 안전 필터에 의해 차단되었습니다. (재시도 안 함)")
-                return "SAFETY_BLOCKED"
-
-            else:
-                print(f"⚠️ API가 알 수 없는 이유로 빈 응답을 반환했습니다. ({attempt + 1}/{max_retries}차 시도)")
-                time.sleep(5 * (attempt + 1))
-                continue
-
-        except Exception as e:
-            print(f"❌ Gemini API 통신 중 예외 발생: {e} ({attempt + 1}/{max_retries}차 시도)")
-            if attempt < max_retries - 1:
-                time.sleep(5 * (attempt + 1))
-            continue
-
-    print("❌ 최대 재시도 횟수를 초과했습니다. 최종 실패 처리합니다.")
-    return "API_ERROR"
 
 
 # $ 요약
@@ -244,6 +169,9 @@ def check_gemini_ready():
 # $ 주제 선정 및 초안 생성
 def life_tips_keyword(keyword):
     """초안 생성 후 life_tips_start를 호출하고 그 결과를 반환"""
+
+    today = datetime.today().strftime("%Y년 %m월 %d일")
+
     print(f"▶ 키워드 '{keyword}'로 본문 초안 생성 요청")
     prompt = f"""
     [역할]
@@ -251,7 +179,7 @@ def life_tips_keyword(keyword):
     [지시]
     '{keyword}'라는 주제에 대해, 아래 규칙을 모두 준수하여 블로그 포스팅을 위한 상세한 '초안'을 작성해주세요.
     [작성 규칙]
-    1. **정보의 정확성:** 모든 정보는 2025년 현재 유효한 것이어야 합니다. 기관명, 정책명, 통계 수치는 실제 존재하는 공식적인 정보를 기반으로 작성하세요.
+    1. **정보의 정확성:** 모든 정보는 {today} 현재 유효한 것이어야 합니다. 기관명, 정책명, 통계 수치는 실제 존재하는 공식적인 정보를 기반으로 작성하세요.
     2. **내용의 구체성:** 추상적인 설명 대신, 독자들이 바로 활용할 수 있는 구체적인 조건, 수치, 방법, 예시를 풍부하게 포함해주세요.
     3. **구조적 글쓰기:** 서론-본론-결론의 구조를 갖추고, 본론은 3~4개의 명확한 소주제로 나누어 각 소주제별로 내용을 상세히 서술해주세요.
     4. **출력 형식:** **가장 중요합니다. 절대 HTML 태그를 사용하지 말고, 오직 '일반 텍스트'로만** 작성해주세요.
@@ -355,12 +283,14 @@ def generate_structured_content_json(article, keyword):
     [필수 포함 요소]
     1.  **독창적 분석:** 주제와 관련된 여러 방법이나 옵션이 있다면, 장단점을 비교하는 '유형별 비교 분석' 표(Table)를 반드시 포함하세요.
     2.  **개인 경험(E-E-A-T):** 본문 내용과 관련된 당신의 짧은 경험담이나 실제 사례를 1인칭 시점("제가 직접 해보니...")으로 자연스럽게 녹여내세요.
+    - "제가 직접 해보니..." 는 단순 예시일 뿐, 본문 내용 흐름에 맞춰 팁이 될 내용을 적어주세요.
     3.  **전문가 팁 & 주의사항:** 독자들이 놓치기 쉬운 '전문가의 꿀팁'이나 '주의사항' 섹션을 구체적으로 추가하여 신뢰도(T)를 높이세요.
-    4.  **구조화:** 전체 내용은 서론, 3~4개의 소주제, 결론으로 명확하게 구분해주세요.
+    4.  **구조화:** 전체 내용은 서론, 3~4개의 소주제를 명확하게 구분해주세요.
 
     [콘텐츠 생성 원칙]
     1.  **소제목(title) 작성:** 독자가 검색할 만한 핵심 키워드를 중심으로, 간결하고 명확하게 작성하세요.
     2.  **서론 강화:** 독자의 흥미를 유발하는 도입부와 함께, 이 글을 통해 무엇을 얻을 수 있는지 알려주는 핵심 요약 목록(bullet points)을 서론 내용에 포함해주세요.
+    - 제목에 '서론', '본론', '결론' 이라는 단어 지양
     3.  **독창적 분석(content):** 단순 정보 나열을 피하세요.
         - 만약 주제에 여러 선택지나 유형이 있다면, **장단점을 비교하는 '비교 분석표'**를 포함하세요.
         - 만약 주제가 어떤 절차나 방법을 설명한다면, **구체적인 '단계별 가이드'**를 제시하세요.
@@ -497,28 +427,63 @@ def clean_and_refine_html(soup):
 # ✨ [핵심 수정] 전체 작업 흐름을 제어하는 메인 함수
 # ==============================================================================
 def markdown_to_html(content):
-    """마크다운(리스트, 테이블, 볼드)을 HTML로 변환합니다."""
+    """
+    마크다운(리스트, 볼드, 테이블+캡션)을 HTML로 변환합니다.
+    """
     content = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', content)
     lines = content.strip().split('\n')
-    html_output, in_list, in_table = [], False, False
+    html_output = []
+    in_list = False
+    in_table = False
+    table_caption = None
+
     for line in lines:
         line = line.strip()
+
+        # ✅ 1. [표 제목]: 패턴을 감지하여 캡션으로 저장
+        if line.startswith('[표 제목]:'):
+            table_caption = line.replace('[표 제목]:', '').strip()
+            continue
+
+        # 리스트 처리
         if line.startswith('* '):
-            if not in_list: html_output.append("<ul>"); in_list = True
+            if not in_list:
+                html_output.append("<ul>")
+                in_list = True
             html_output.append(f"<li>{line[2:].strip().replace('*', '')}</li>")
             continue
-        elif in_list: html_output.append("</ul>"); in_list = False
+        elif in_list:
+            html_output.append("</ul>")
+            in_list = False
+
+        # 테이블 처리
         if line.startswith('|') and line.endswith('|'):
-            if not in_table: html_output.append("<table><tbody>"); in_table = True
+            if not in_table:
+                html_output.append("<table>")
+                # ✅ 2. 저장된 캡션이 있으면 테이블에 추가
+                if table_caption:
+                    html_output.append(f"<caption>{table_caption}</caption>")
+                    table_caption = None  # 사용 후 초기화
+                html_output.append("<tbody>")
+                in_table = True
+
             if all(c in '-| ' for c in line): continue
+
             cells = [cell.strip().replace('*', '') for cell in line.split('|')[1:-1]]
             row_html = "".join([f"<td>{cell}</td>" for cell in cells])
             html_output.append(f"<tr>{row_html}</tr>")
             continue
-        elif in_table: html_output.append("</tbody></table>"); in_table = False
-        if line: html_output.append(f"<p>{line.replace('*', '')}</p>")
+        elif in_table:
+            html_output.append("</tbody></table>")
+            in_table = False
+
+        # 일반 문단 처리
+        if line:
+            html_output.append(f"<p>{line.replace('*', '')}</p>")
+
     if in_list: html_output.append("</ul>")
     if in_table: html_output.append("</tbody></table>")
+
     return "\n".join(html_output)
 
 

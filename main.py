@@ -49,6 +49,11 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 from googleapiclient.discovery import build
 import google.generativeai as genai
+from googlesearch import search
+import traceback
+import pyperclip
+from inputimeout import inputimeout, TimeoutOccurred
+from playwright.sync_api import Playwright, sync_playwright, expect
 
 
 # 패키지 다운 불필요
