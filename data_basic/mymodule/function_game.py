@@ -88,7 +88,8 @@ def isNumber_(s):
     try:
         float(s)
         return True
-    except ValueError:
+    except Exception as e:  # ValueError만 잡으면 안 됨
+        print(f"[isNumber_] 예외 발생: {e}")
         return False
 
 
@@ -294,7 +295,8 @@ def int_put_(data):
         # data_4 = data_3.strip().replace('/', '')
         result = re.sub(r'[^0-9]', '', data_4)
         return result
-    except ValueError:
+    except Exception as e:  # ValueError만 잡으면 안 됨
+        print(f"[int_put_] 예외 발생: {e}")
         return False
 
 
@@ -311,7 +313,8 @@ def float_put_(data):
         # data_4 = data_3.strip().replace('/', '')
         result = re.sub(r'[^0-9]', '', data_4)
         return result
-    except ValueError:
+    except Exception as e:  # ValueError만 잡으면 안 됨
+        print(f"[float_put_] 예외 발생: {e}")
         return False
 
 
@@ -361,7 +364,8 @@ def imgs_set(a, b, c, d, cla, img):
         result = pyautogui.locateCenterOnScreen(img, region=(a + plus, b, c - a + 10, d - b + 10),
                                                 confidence=0.7)
         return result
-    except ValueError:
+    except Exception as e:  # ValueError만 잡으면 안 됨
+        print(f"[imgs_set] 예외 발생: {e}")
         return False
 
 
@@ -392,7 +396,8 @@ def imgs_set_(a, b, c, d, cla, img, data):
         result = pyautogui.locateCenterOnScreen(img, region=(a + plus, b, c - a, d - b),
                                                 confidence=data)
         return result
-    except ValueError:
+    except Exception as e:  # ValueError만 잡으면 안 됨
+        print(f"[imgs_set_] 예외 발생: {e}")
         return False
 
 
@@ -423,7 +428,8 @@ def imgs_set_num(a, b, c, d, cla, img, data):
         result = pyautogui.locateCenterOnScreen(img, region=(a + plus, b, c - a, d - b),
                                                 confidence=data)
         return result
-    except ValueError:
+    except Exception as e:  # ValueError만 잡으면 안 됨
+        print(f"[imgs_set_num] 예외 발생: {e}")
         return False
 
 
@@ -454,7 +460,8 @@ def imgs_set_reg(a, b, c, d, cla, img, data):
         result = pyautogui.locateCenterOnScreen(img, region=(a + plus, b, c - a, d - b),
                                                 confidence=data)
         return result
-    except ValueError:
+    except Exception as e:  # ValueError만 잡으면 안 됨
+        print(f"[imgs_set_reg] 예외 발생: {e}")
         return False
 
 
@@ -501,7 +508,8 @@ def imgs_set_for(a, b, c, d, cla, img, data):
             regs.append(last)
 
         return regs
-    except ValueError:
+    except Exception as e:  # ValueError만 잡으면 안 됨
+        print(f"[imgs_set_for] 예외 발생: {e}")
         return False
 
 

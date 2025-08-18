@@ -2244,39 +2244,12 @@ class issue_upload_class(QThread):
         self.keyword = keyword
 
     def run(self):
-        from issue_upload import generate_issue_draft, add_personal_view
-        from blog_function import check_cafe_access, post_the_article
-        from naver_cafe_upload import post_to_naver_cafe
-        from typing import List, Optional
 
         print("이슈블로그 업로드(ver " + version + ")")
         print("전달 받은 키워드:", self.keyword)
 
         # ====== 업로드할 콘텐츠 예시 ======
-        POST_TITLE = "[자동업로드] 예시 제목입니다"
-        # HTML 본문 (순수 텍스트도 가능). 에디터의 'HTML' 편집 모드가 활성화되면 그대로 들어갑니다.
-        POST_HTML = """
-        <h2>자동 업로드 본문 예시</h2>
-        <p>이 글은 Playwright로 자동 업로드되었습니다.</p>
-        <ul>
-          <li>항목 1</li>
-          <li>항목 2</li>
-        </ul>
-        <p><em>이미지도 함께 업로드할 수 있어요.</em></p>
-        """
 
-        # 업로드할 이미지 경로들(선택). 없으면 빈 리스트.
-        IMAGE_PATHS: List[str] = [
-            # r"C:\path\to\image1.jpg",
-            # r"C:\path\to\image2.png",
-        ]
-
-        post_to_naver_cafe(
-            headless=False,
-            title=POST_TITLE,
-            html_body=POST_HTML,
-            image_paths=IMAGE_PATHS,
-        )
 
 
 class Monitoring_one(QThread):
