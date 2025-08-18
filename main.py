@@ -134,8 +134,14 @@ if __name__ == '__main__':
         # Set the exception hook to our wrapping function
         sys.excepthook = main_p.my_exception_hook
 
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8")
+
         sys.exit(app.exec_())
     except Exception as e:
         print(e)
         print("프로그램 꺼지기전 정지")
         os.system("pause")
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")

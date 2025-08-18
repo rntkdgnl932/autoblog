@@ -27,11 +27,12 @@ def go_test(keyword):
     import requests
     import re
     import urllib.parse
-    from life_tips import life_tips_keyword, check_openai_ready, suggest_life_tip_topic
+    from life_tips import life_tips_keyword, check_openai_ready, suggest_life_tip_topic, stable_diffusion
     from trend_search_page import get_zum_ai_issue_trends, get_google_trending_keywords, get_youtube_trending_titles, \
         fetch_health_titles, collect_all_topics, filter_topics_by_category, search_naver_blog_top_post
     from organization_info import scan_internet
     from naver_cafe_upload import naver_cafe_upload_main_in
+    from blog_function import run_sd_asd_png_test
 
     try:
         print("test")
@@ -53,7 +54,7 @@ def go_test(keyword):
         elif cla == "six":
             plus = 960 * 5
 
-        naver_cafe_upload_main_in()
+        run_sd_asd_png_test()
 
 
     except Exception as e:
